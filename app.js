@@ -247,19 +247,19 @@ function medModal(id) {
 function measureModal(id) {
   if (!db.people.length) { toast('Adicione uma pessoa da família nas configurações primeiro.'); return; }
   const existing = db.measurements.find(m => m.id === id), m = existing || {}, type = m.type || 'bp';
-  modal(existing ? 'Alterar medição' : 'Registrar medição', 'ACOMPANHAMENTO DE SAÚDE', `<label>Pessoa<select name="personId">${sortByName(db.people).map(p => `<option value="${p.id}" ${m.personId === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label><label>Tipo de medição<select name="type" id="measure-type"><option value="bp" ${type === 'bp' ? 'selected' : ''}>Pressão arterial</option><option value="glucose" ${type === 'glucose' ? 'selected' : ''}>Glicemia</option></select></label><div id="measure-values"></div><div class="form-grid"><label>Data<input name="date" type="date" value="${esc(m.date || todayISO())}" required></label><label>Horário<input name="time" type="time" value="${esc(m.time || new Date().toTimeString().slice(0, 5))}"></label></div><label>Observação (opcional)<input name="note" value="${esc(m.note || '')}" placeholder="Ex.: antes do café da manhã"></label>`, f => {
+  modal(existing ? 'Alterar medição' : 'Registrar medição', 'ACOMPANHAMENTO DE SAÚDE', `<label>Pessoa<select name="personId">${sortByName(db.people).map(p => `<option value="${p.id}" ${m.personId === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label><fieldset class="measure-type-field"><legend>Tipo de medição</legend><div class="measure-type-options"><label class="measure-type-option"><input type="radio" name="type" value="bp" ${type === 'bp' ? 'checked' : ''}><span>Pressão arterial</span></label><label class="measure-type-option"><input type="radio" name="type" value="glucose" ${type === 'glucose' ? 'checked' : ''}><span>Glicemia</span></label></div></fieldset><div id="measure-values"></div><div class="form-grid"><label>Data<input name="date" type="date" value="${esc(m.date || todayISO())}" required></label><label>Horário<input name="time" type="time" value="${esc(m.time || new Date().toTimeString().slice(0, 5))}"></label></div><label>Observação (opcional)<input name="note" value="${esc(m.note || '')}" placeholder="Ex.: antes do café da manhã"></label>`, f => {
     const newType = f.get('type'), record = { id: existing?.id || uid(), personId: f.get('personId'), type: newType, date: f.get('date'), time: f.get('time'), note: f.get('note').trim() };
     if (newType === 'bp') { record.sys = Number(f.get('sys')); record.dia = Number(f.get('dia')); if (!record.sys || !record.dia) { toast('Informe sistólica e diastólica.'); return false; } }
     else { record.value = Number(f.get('value')); if (!record.value) { toast('Informe o valor da glicemia.'); return false; } }
     if (existing) Object.assign(existing, record); else db.measurements.push(record); save(); render(); toast(existing ? 'Medição atualizada.' : 'Medição registrada.');
   });
   const update = () => {
-    const selectedType = $('#measure-type').value;
+    const selectedType = $('#modal-body [name="type"]:checked').value;
     $('#measure-values').innerHTML = selectedType === 'bp'
       ? `<div class="form-grid"><label>Sistólica (mmHg)<input name="sys" type="number" min="40" max="300" required placeholder="120" value="${selectedType === 'bp' ? esc(m.sys ?? '') : ''}"></label><label>Diastólica (mmHg)<input name="dia" type="number" min="20" max="200" required placeholder="80" value="${selectedType === 'bp' ? esc(m.dia ?? '') : ''}"></label></div>`
       : `<label>Glicemia (mg/dL)<input name="value" type="number" min="1" max="2000" required placeholder="95" value="${selectedType === 'glucose' ? esc(m.value ?? '') : ''}"></label>`;
   };
-  $('#measure-type').onchange = update; update();
+  $$('#modal-body [name="type"]').forEach(input => input.onchange = update); update();
 }
 function personModal(id) {
   if (!isAdmin()) { toast('Apenas um administrador pode gerenciar pessoas.'); return; }
