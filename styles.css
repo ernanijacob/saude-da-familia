@@ -67,6 +67,7 @@ body.dark{--bg:#17211d;--surface:#202c26;--surface2:#2a3931;--ink:#e6eee8;--mute
 .measure-type-option:has(input:checked){border-color:var(--green);background:var(--green2);color:var(--green)}
 .measure-type-option:has(input:focus-visible){outline:3px solid color-mix(in srgb,var(--green) 35%,transparent);outline-offset:2px}
 @media(max-width:650px){.measure-type-field legend{font-size:16px}.measure-type-option{font-size:15px;min-height:52px;padding:10px}}
+.shift-label-short{display:none}
 
 /* Extra-large touch targets and text for phone accessibility */
 @media(max-width:650px){
@@ -100,6 +101,22 @@ body.dark{--bg:#17211d;--surface:#202c26;--surface2:#2a3931;--ink:#e6eee8;--mute
   .modal-head h2{font-size:24px}
   .modal-actions{position:sticky;bottom:-20px;margin:18px -20px -20px;padding:14px 20px max(14px,env(safe-area-inset-bottom));background:var(--surface);border-top:1px solid var(--line);z-index:1}
   .modal-actions button{font-size:17px;min-height:54px;min-width:112px}
+  .shift-label-full{display:none}
+  .shift-label-short{display:inline;text-transform:uppercase}
+}
+
+@media(max-width:650px){
+  dialog.compact-modal{width:calc(100vw - 24px);max-width:none;max-height:calc(100vh - 24px);max-height:calc(100dvh - 24px);overflow-y:auto}
+  dialog.compact-modal #modal-form{max-height:calc(100vh - 24px);max-height:calc(100dvh - 24px);padding:14px;overflow-y:auto}
+  dialog.compact-modal .modal-head{padding-bottom:8px}
+  dialog.compact-modal .modal-head .eyebrow{font-size:11px;margin-bottom:5px}
+  dialog.compact-modal .modal-head h2{font-size:21px}
+  dialog.compact-modal #modal-body>p{font-size:14px;line-height:1.4;margin:9px 0}
+  dialog.compact-modal #modal-body label{font-size:15px;line-height:1.3;margin:9px 0}
+  dialog.compact-modal #modal-body select{font-size:16px;min-height:44px;padding:9px 11px;margin-top:4px}
+  dialog.compact-modal #modal-body>.text-button{font-size:14px;min-height:40px;padding:7px 5px}
+  dialog.compact-modal .modal-actions{position:sticky;bottom:-14px;margin:10px -14px -14px;padding:10px 14px max(10px,env(safe-area-inset-bottom));gap:8px}
+  dialog.compact-modal .modal-actions button{font-size:15px;min-height:46px;min-width:96px;padding:9px 12px}
 }
 [hidden]{display:none!important}
 .checkbox-label{display:flex;align-items:center;gap:9px;font-size:12px;min-height:42px}

@@ -27,6 +27,7 @@ function save() {
 function toast(message) { const t = $('#toast'); t.textContent = message; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2600); }
 function dateFmt(s) { return s ? new Date(`${s}T12:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) : ''; }
 function personName(id) { return db.people.find(p => p.id === id)?.name || 'Pessoa removida'; }
+function shortPersonName(id) { return Array.from(personName(id).trim()).slice(0, 2).join('').toLocaleUpperCase('pt-BR'); }
 function personColor(id) { const color = db.people.find(p => p.id === id)?.color; return /^#[0-9a-f]{6}$/i.test(color || '') ? color : '#dff0e8'; }
 function personTextColor(id) { const hex = personColor(id).slice(1), r = parseInt(hex.slice(0, 2), 16), g = parseInt(hex.slice(2, 4), 16), b = parseInt(hex.slice(4, 6), 16); return (r * 299 + g * 587 + b * 114) / 1000 > 150 ? '#24352e' : '#ffffff'; }
 function personColorStyle(id) { return `background-color:${personColor(id)};color:${personTextColor(id)}`; }
@@ -148,7 +149,7 @@ function calendarView() {
   let cells = weekdays.map(d => `<div class="weekday">${d}</div>`).join('');
   for (let i = 0; i < 42; i++) {
     const d = new Date(start); d.setDate(start.getDate() + i); const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`, s = db.shifts[iso] || {};
-    cells += `<div class="day ${d.getMonth() !== month ? 'out' : ''} ${iso === todayISO() ? 'today' : ''}" onclick="shiftModal('${iso}')"><div class="day-num">${d.getDate()}</div>${s.day ? `<div class="shift" style="${personColorStyle(s.day)}">☀ ${esc(personName(s.day))}</div>` : ''}${s.night ? `<div class="shift night" style="${personColorStyle(s.night)}">☾ ${esc(personName(s.night))}</div>` : ''}</div>`;
+    cells += `<div class="day ${d.getMonth() !== month ? 'out' : ''} ${iso === todayISO() ? 'today' : ''}" onclick="shiftModal('${iso}')"><div class="day-num">${d.getDate()}</div>${s.day ? `<div class="shift" style="${personColorStyle(s.day)}" title="Turno do dia: ${esc(personName(s.day))}" aria-label="Turno do dia: ${esc(personName(s.day))}">☀ <span class="shift-label-full">${esc(personName(s.day))}</span><span class="shift-label-short" aria-hidden="true">${esc(shortPersonName(s.day))}</span></div>` : ''}${s.night ? `<div class="shift night" style="${personColorStyle(s.night)}" title="Turno da noite: ${esc(personName(s.night))}" aria-label="Turno da noite: ${esc(personName(s.night))}">☾ <span class="shift-label-full">${esc(personName(s.night))}</span><span class="shift-label-short" aria-hidden="true">${esc(shortPersonName(s.night))}</span></div>` : ''}</div>`;
   }
   return `<div class="card"><div class="card-head"><div><h3>Calendário do cuidador</h3><p>Toque em um dia para organizar os turnos.</p></div><div class="calendar-toolbar"><button onclick="moveMonth(-1)">‹</button><strong>${new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(calDate)}</strong><button onclick="moveMonth(1)">›</button></div></div><div class="calendar">${cells}</div><div class="setting-option"><small>☀ Turno do dia &nbsp;&nbsp; ☾ Turno da noite</small><button class="secondary" onclick="exportSchedule()">⇧ Exportar imagem</button></div></div>`;
 }
@@ -226,6 +227,7 @@ function settingsView() {
 function bindContent() { const select = $('#chart-person'); if (select) { select.onchange = drawChart; drawChart(); } const input = $('#import-file'); if (input) input.onchange = importBackup; }
 
 function modal(title, kicker, html, callback) {
+  $('#modal').classList.remove('compact-modal');
   $('#modal-title').textContent = title; $('#modal-kicker').textContent = kicker; $('#modal-body').innerHTML = html; $('#modal-save').textContent = 'Salvar';
   $('#modal-form').onsubmit = e => { e.preventDefault(); if (callback(new FormData(e.currentTarget)) !== false) $('#modal').close(); };
   $('#modal').showModal();
@@ -233,6 +235,7 @@ function modal(title, kicker, html, callback) {
 function shiftModal(date) {
   const shifts = db.shifts[date] || {}, options = '<option value="">Sem responsável</option>' + sortByName(db.people).map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('');
   modal('Organizar turnos', 'ESCALA · ' + dateFmt(date), `<p class="muted">Quem estará responsável neste dia?</p><label>☀ Turno do dia<select name="day">${options}</select></label><label>☾ Turno da noite<select name="night">${options}</select></label><button type="button" class="text-button" onclick="deleteShift('${date}');document.querySelector('#modal').close()">Remover os dois turnos</button>`, f => { const day = f.get('day'), night = f.get('night'); if (day || night) db.shifts[date] = { day, night }; else delete db.shifts[date]; save(); render(); });
+  $('#modal').classList.add('compact-modal');
   $('#modal-body [name=day]').value = shifts.day || ''; $('#modal-body [name=night]').value = shifts.night || '';
 }
 function medModal(id) {
