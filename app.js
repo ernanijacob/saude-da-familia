@@ -1,5 +1,5 @@
 const APP_VERSION = '1.0.0';
-const KEY = 'lacos-family-v1';
+const KEY = 'saude-familia-cloud-cache-v1';
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
 const todayISO = () => {
@@ -11,8 +11,19 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<'
 const fresh = () => ({ users: [], people: [], shifts: {}, medications: [], doses: {}, measurements: [], theme: 'light', family: 'Minha família' });
 let db = (() => { try { return { ...fresh(), ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch { return fresh(); } })();
 let current = null, page = 'inicio', calDate = new Date(), authMode = 'login', medFilterPerson = '';
+const supabaseClient = window.supabase?.createClient && window.SUPABASE_URL?.startsWith('https://') && !window.SUPABASE_URL.includes('YOUR-PROJECT') && window.SUPABASE_ANON_KEY && !window.SUPABASE_ANON_KEY.includes('YOUR_')
+  ? window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY) : null;
+let familyId = null, familyInviteCode = '', syncQueue = Promise.resolve(), familyChannel = null;
 
-function save() { localStorage.setItem(KEY, JSON.stringify(db)); }
+function save() {
+  localStorage.setItem(KEY, JSON.stringify({ ...db, users: [] }));
+  if (!supabaseClient || !familyId || !current) return;
+  const payload = { ...db, users: [] };
+  syncQueue = syncQueue.then(async () => {
+    const { error } = await supabaseClient.rpc('save_family_data', { p_data: payload });
+    if (error) { console.error('Falha ao sincronizar dados:', error); toast('Não foi possível sincronizar. Verifique a conexão e tente novamente.'); }
+  }).catch(error => { console.error('Falha ao sincronizar dados:', error); toast('Não foi possível sincronizar. Verifique a conexão e tente novamente.'); });
+}
 function toast(message) { const t = $('#toast'); t.textContent = message; t.classList.add('show'); setTimeout(() => t.classList.remove('show'), 2600); }
 function dateFmt(s) { return s ? new Date(`${s}T12:00:00`).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) : ''; }
 function personName(id) { return db.people.find(p => p.id === id)?.name || 'Pessoa removida'; }
@@ -29,42 +40,73 @@ function isAdmin() { return current?.role === 'admin'; }
 
 function setAuth() {
   const form = $('#auth-form'), input = form.querySelector('[name="name"]');
-  input.closest('label').hidden = authMode === 'login'; input.required = authMode === 'register';
+  $('#name-label').hidden = authMode === 'login'; input.required = authMode === 'register';
+  $('#family-name-label').hidden = authMode === 'login'; $('#invite-code-label').hidden = authMode === 'login';
+  form.querySelector('[name="familyName"]').required = authMode === 'register' && !form.querySelector('[name="inviteCode"]').value.trim();
   $('#auth-submit').textContent = authMode === 'register' ? 'Criar conta' : 'Entrar';
   $('#auth-toggle').textContent = authMode === 'register' ? 'Já tenho uma conta' : 'Criar uma conta';
   $('#forgot').hidden = authMode === 'register';
   form.querySelector('[name="password"]').autocomplete = authMode === 'register' ? 'new-password' : 'current-password';
+  $('#auth-help').textContent = authMode === 'register' ? 'Para compartilhar os dados, informe o código familiar que o administrador forneceu. Sem código, será criado um novo espaço e você será administrador.' : 'Entre com sua conta para acessar os dados sincronizados da família.';
 }
 $('#auth-toggle').onclick = () => { authMode = authMode === 'register' ? 'login' : 'register'; setAuth(); };
-$('#forgot').onclick = () => {
-  const email = prompt('Informe o e-mail da conta neste dispositivo:'); if (!email) return;
-  const user = db.users.find(u => u.email === email.trim().toLowerCase());
-  if (!user) { toast('Não encontramos uma conta com esse e-mail.'); return; }
-  const password = prompt('Defina uma nova senha (mínimo 6 caracteres):');
-  if (!password || password.length < 6) { toast('A senha precisa ter pelo menos 6 caracteres.'); return; }
-  user.password = btoa(unescape(encodeURIComponent(password))); save(); toast('Senha redefinida neste dispositivo.');
+$('[name="inviteCode"]').oninput = () => { if (authMode === 'register') setAuth(); };
+$('#forgot').onclick = async () => {
+  if (!supabaseClient) { toast('Configure as credenciais do Supabase primeiro.'); return; }
+  const email = $('#auth-form [name="email"]').value.trim(); if (!email) { toast('Informe seu e-mail no campo acima.'); return; }
+  const { error } = await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo: location.href.split('#')[0] });
+  toast(error ? `Não foi possível enviar o e-mail: ${error.message}` : 'Se o e-mail estiver cadastrado, você receberá um link para redefinir a senha.');
 };
-$('#auth-form').onsubmit = (e) => {
+$('#auth-form').onsubmit = async (e) => {
   e.preventDefault(); const f = new FormData(e.currentTarget), name = String(f.get('name') || '').trim(), email = String(f.get('email')).trim().toLowerCase(), password = String(f.get('password'));
-  const encoded = btoa(unescape(encodeURIComponent(password)));
+  if (!supabaseClient) { toast('Configure a URL e a chave pública do Supabase em supabase-config.js.'); return; }
   if (authMode === 'register') {
-    if (db.users.some(u => u.email === email)) { toast('Este e-mail já está cadastrado.'); return; }
-    const user = { id: uid(), name, email, password: encoded, role: db.users.length ? 'user' : 'admin' };
-    db.users.push(user); if (!db.people.length) db.people.push({ id: uid(), name }); current = user; save(); boot();
+    const familyName = String(f.get('familyName') || '').trim(), inviteCode = String(f.get('inviteCode') || '').trim();
+    const { data, error } = await supabaseClient.auth.signUp({ email, password, options: { data: { name, family_name: familyName, invite_code: inviteCode }, emailRedirectTo: location.href.split('#')[0] } });
+    if (error) { toast(error.message); return; }
+    if (data.session) await establishSession(data.session);
+    else toast('Conta criada. Confirme seu e-mail e depois entre para ativar o acesso à família.');
   } else {
-    const user = db.users.find(u => u.email === email && u.password === encoded);
-    if (!user) { toast('E-mail ou senha incorretos.'); return; } current = user; boot();
+    const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if (error) { toast('Não foi possível entrar. Confira o e-mail e a senha.'); return; }
+    await establishSession(data.session);
   }
 };
+async function establishSession(session) {
+  if (!session?.user) return;
+  current = { id: session.user.id, email: session.user.email, name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Usuário', role: 'user' };
+  const meta = session.user.user_metadata || {};
+  const { data: contexts, error: contextError } = await supabaseClient.rpc('bootstrap_family', { p_family_name: meta.family_name || 'Minha família', p_invite_code: meta.invite_code || null });
+  if (contextError) { toast(`Não foi possível abrir o espaço familiar: ${contextError.message}`); return; }
+  const context = contexts?.[0]; familyId = context.family_id; db.family = context.family_name; current.role = context.member_role; familyInviteCode = context.invite_code || '';
+  const [{ data: state, error: stateError }, { data: members, error: membersError }] = await Promise.all([
+    supabaseClient.from('family_data').select('data').eq('family_id', familyId).single(),
+    supabaseClient.rpc('list_family_members')
+  ]);
+  if (stateError) { toast(`Não foi possível carregar os dados: ${stateError.message}`); return; }
+  db = { ...fresh(), ...(state?.data || {}), family: state?.data?.family || context.family_name, users: (membersError ? [] : members || []).map(m => ({ id: m.user_id, name: m.display_name, email: m.email, role: m.role })) };
+  localStorage.setItem(KEY, JSON.stringify({ ...db, users: [] }));
+  boot();
+  if (familyChannel) await supabaseClient.removeChannel(familyChannel);
+  familyChannel = supabaseClient.channel(`family-data-${familyId}`).on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'family_data', filter: `family_id=eq.${familyId}` }, payload => {
+    if (!current || !payload.new?.data) return;
+    db = { ...fresh(), ...payload.new.data, users: db.users };
+    localStorage.setItem(KEY, JSON.stringify({ ...db, users: [] }));
+    document.body.classList.toggle('dark', db.theme === 'dark'); render();
+  }).subscribe();
+  const { data: profile } = await supabaseClient.from('profiles').select('display_name').eq('id', current.id).maybeSingle();
+  if (profile?.display_name) current.name = profile.display_name;
+  $('#user-name').textContent = current.name; $('#user-avatar').textContent = current.name[0]?.toUpperCase() || 'U';
+}
 function boot() {
-  if (!current) { $('#auth').classList.remove('hidden'); $('#app').classList.add('hidden'); return; }
+  if (!current) { $('#auth').classList.remove('hidden'); $('#app').classList.add('hidden'); if (!supabaseClient) $('#auth-help').textContent = 'Antes de usar, configure SUPABASE_URL e SUPABASE_ANON_KEY no arquivo supabase-config.js.'; return; }
   $('#auth').classList.add('hidden'); $('#app').classList.remove('hidden');
   document.body.classList.toggle('dark', db.theme === 'dark');
   $('#user-name').textContent = current.name; $('#user-avatar').textContent = current.name[0]?.toUpperCase() || 'U';
   $('#user-role').textContent = isAdmin() ? 'Administrador' : 'Usuário'; $('#family-label').textContent = db.family || 'Minha família';
   $('#today-label').textContent = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }); render();
 }
-$('#logout').onclick = () => { current = null; boot(); };
+$('#logout').onclick = async () => { await supabaseClient?.auth.signOut(); current = null; familyId = null; boot(); };
 $('#theme-toggle').onclick = toggleTheme;
 $$('[data-page]').forEach(b => b.onclick = () => go(b.dataset.page));
 function go(p) {
@@ -176,10 +218,10 @@ function aboutView() {
 
 function settingsView() {
   return `<div class="welcome"><div><p class="eyebrow">PREFERÊNCIAS E DADOS</p><h2>Configurações</h2><p>Personalize o espaço e cuide dos dados da família.</p></div></div><div class="settings-grid"><section class="card"><div class="card-head"><h3>Aparência</h3></div><div class="setting-option"><div><b>Tema ${db.theme === 'dark' ? 'escuro' : 'claro'}</b><small>Escolha a aparência mais confortável.</small></div><button class="secondary" onclick="toggleTheme()">Alternar tema</button></div></section>
-  <section class="card"><div class="card-head"><h3>Espaço familiar</h3></div><label>Nome da família<input id="family-input" value="${esc(db.family)}"></label><button class="primary" onclick="saveFamily()">Salvar nome</button></section>
-  <section class="card"><div class="card-head"><div><h3>Pessoas da família</h3><p>As pessoas associadas a turnos, remédios e medições.</p></div><button class="secondary" onclick="personModal()">＋ Adicionar</button></div>${sortByName(db.people).map(p => `<div class="list-row"><span class="person-dot" style="${personColorStyle(p.id)}">${esc(p.name[0]?.toUpperCase())}</span><div class="row-main"><b>${esc(p.name)}</b><small>Membro da família</small></div><button class="text-button" onclick="personModal('${p.id}')">Editar</button> · <button class="text-button" onclick="deletePerson('${p.id}')">Excluir</button></div>`).join('') || '<div class="empty">Adicione alguém da família para começar.</div>'}</section>
-  <section class="card"><div class="card-head"><div><h3>Contas e permissões</h3><p>O primeiro cadastro local é administrador.</p></div></div>${sortByName(db.users).map(u => `<div class="list-row"><span class="person-dot green">${esc(u.name[0]?.toUpperCase())}</span><div class="row-main"><b>${esc(u.name)}</b><small>${esc(u.email)}</small></div><button class="text-button" ${!isAdmin() ? 'disabled' : ''} onclick="userModal('${u.id}')">Editar</button><select ${!isAdmin() || u.id === current.id ? 'disabled' : ''} onchange="changeRole('${u.id}',this.value)" style="width:auto;margin:0"><option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Administrador</option><option value="user" ${u.role === 'user' ? 'selected' : ''}>Usuário</option></select></div>`).join('')}<label>Adicionar usuário neste dispositivo<input id="new-user-name" placeholder="Nome"><input id="new-user-email" type="email" placeholder="E-mail"><input id="new-user-pass" type="password" minlength="6" placeholder="Senha temporária (mínimo 6 caracteres)"></label><button class="secondary" onclick="addUser()">Criar usuário</button></section>
-  <section class="card"><div class="card-head"><div><h3>Backup da família</h3><p>Exporte ou restaure todos os dados em arquivo JSON.</p></div></div><p class="tiny">O backup inclui pessoas, contas locais, senhas, turnos, remédios e medições. Guarde o arquivo com segurança.</p><div class="setting-actions"><button class="primary" onclick="exportBackup()">⇩ Exportar base completa</button><button class="secondary" onclick="document.querySelector('#import-file').click()">⇧ Importar backup</button><input id="import-file" type="file" accept="application/json,.json" hidden></div></section><section class="card"><div class="card-head"><h3>Sobre seus dados</h3></div><p class="tiny">Os dados são salvos apenas neste navegador e aparelho. Para compartilhar dados entre dispositivos será necessário conectar o aplicativo a um servidor seguro. A redefinição de senha nesta versão também é local e não envia e-mail.</p></section></div>`;
+  <section class="card"><div class="card-head"><h3>Espaço familiar</h3></div><label>Nome da família<input id="family-input" value="${esc(db.family)}" ${!isAdmin() ? 'disabled' : ''}></label><button class="primary" onclick="saveFamily()" ${!isAdmin() ? 'disabled' : ''}>Salvar nome</button>${isAdmin() ? `<div class="setting-option"><div><b>Código de acesso</b><small>Compartilhe com familiares. Eles devem criar conta e informar este código.</small><code>${esc(familyInviteCode || 'Código indisponível')}</code></div><button class="secondary" onclick="addUser()">Copiar código</button></div>` : ''}</section>
+  <section class="card"><div class="card-head"><div><h3>Pessoas da família</h3><p>As pessoas associadas a turnos, remédios e medições.</p></div><button class="secondary" onclick="personModal()" ${!isAdmin() ? 'disabled' : ''}>＋ Adicionar</button></div>${sortByName(db.people).map(p => `<div class="list-row"><span class="person-dot" style="${personColorStyle(p.id)}">${esc(p.name[0]?.toUpperCase())}</span><div class="row-main"><b>${esc(p.name)}</b><small>Membro da família</small></div><button class="text-button" ${!isAdmin() ? 'disabled' : ''} onclick="personModal('${p.id}')">Editar</button> · <button class="text-button" ${!isAdmin() ? 'disabled' : ''} onclick="deletePerson('${p.id}')">Excluir</button></div>`).join('') || '<div class="empty">Adicione alguém da família para começar.</div>'}</section>
+  <section class="card"><div class="card-head"><div><h3>Contas e permissões</h3><p>Contas autenticadas pelo Supabase nesta família.</p></div></div>${sortByName(db.users).map(u => `<div class="list-row"><span class="person-dot green">${esc(u.name[0]?.toUpperCase())}</span><div class="row-main"><b>${esc(u.name)}</b><small>${esc(u.email)}</small></div><button class="text-button" ${!isAdmin() ? 'disabled' : ''} onclick="userModal('${u.id}')">Editar</button><select ${!isAdmin() || u.id === current.id ? 'disabled' : ''} onchange="changeRole('${u.id}',this.value)" style="width:auto;margin:0"><option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Administrador</option><option value="user" ${u.role === 'user' ? 'selected' : ''}>Usuário</option></select></div>`).join('') || '<div class="empty">Nenhuma conta familiar encontrada.</div>'}<p class="tiny">Para adicionar alguém, compartilhe o código de acesso familiar acima. A pessoa deve criar a própria conta com seu e-mail.</p></section>
+  <section class="card"><div class="card-head"><div><h3>Backup da família</h3><p>Exporte ou restaure os dados compartilhados em arquivo JSON.</p></div></div><p class="tiny">O backup contém pessoas, turnos, remédios e medições. Ele não inclui senhas ou tokens de autenticação.</p><div class="setting-actions"><button class="primary" onclick="exportBackup()">⇩ Exportar base completa</button><button class="secondary" onclick="document.querySelector('#import-file').click()">⇧ Importar backup</button><input id="import-file" type="file" accept="application/json,.json" hidden></div></section><section class="card"><div class="card-head"><h3>Sobre seus dados</h3></div><p class="tiny">Os dados da família são sincronizados no Supabase e protegidos por políticas de acesso por família. As senhas são gerenciadas pelo Supabase Auth. Mantenha o código de acesso familiar privado.</p></section></div>`;
 }
 function bindContent() { const select = $('#chart-person'); if (select) { select.onchange = drawChart; drawChart(); } const input = $('#import-file'); if (input) input.onchange = importBackup; }
 
@@ -220,6 +262,7 @@ function measureModal(id) {
   $('#measure-type').onchange = update; update();
 }
 function personModal(id) {
+  if (!isAdmin()) { toast('Apenas um administrador pode gerenciar pessoas.'); return; }
   const existing = db.people.find(p => p.id === id);
   if (existing && !isAdmin()) { toast('Apenas um administrador pode editar pessoas.'); return; }
   const palette = ['#27735a', '#6496ae', '#bf7a50', '#8669a8', '#cf6981', '#81984b', '#397b8c'];
@@ -232,13 +275,14 @@ function personModal(id) {
 function userModal(id) {
   if (!isAdmin()) { toast('Apenas um administrador pode editar contas.'); return; }
   const existing = db.users.find(u => u.id === id); if (!existing) return;
-  modal('Editar conta', 'CONTAS E PERMISSÕES', `<label>Nome<input name="name" required value="${esc(existing.name)}"></label><label>E-mail<input name="email" type="email" required value="${esc(existing.email)}"></label><label>Perfil<select name="role"><option value="admin" ${existing.role === 'admin' ? 'selected' : ''}>Administrador</option><option value="user" ${existing.role === 'user' ? 'selected' : ''}>Usuário</option></select></label>`, f => {
-    const email = f.get('email').trim().toLowerCase(), role = f.get('role');
-    if (db.users.some(u => u.id !== existing.id && u.email === email)) { toast('Este e-mail já pertence a outra conta.'); return false; }
-    if (existing.role === 'admin' && role !== 'admin' && db.users.filter(u => u.role === 'admin').length === 1) { toast('Mantenha ao menos uma conta de administrador.'); return false; }
-    existing.name = f.get('name').trim(); existing.email = email; existing.role = role;
-    save(); if (current.id === existing.id) { current = existing; $('#user-name').textContent = existing.name; $('#user-avatar').textContent = existing.name[0]?.toUpperCase() || 'U'; $('#user-role').textContent = isAdmin() ? 'Administrador' : 'Usuário'; }
-    render(); toast('Conta atualizada.');
+  modal('Editar conta', 'CONTAS E PERMISSÕES', `<label>Nome<input name="name" required value="${esc(existing.name)}"></label><label>E-mail<input type="email" disabled value="${esc(existing.email)}"></label><label>Perfil<select name="role"><option value="admin" ${existing.role === 'admin' ? 'selected' : ''}>Administrador</option><option value="user" ${existing.role === 'user' ? 'selected' : ''}>Usuário</option></select></label>`, f => {
+    const role = f.get('role');
+    supabaseClient.rpc('update_family_member', { p_user_id: existing.id, p_name: f.get('name').trim(), p_role: role }).then(({ error }) => {
+      if (error) { toast(error.message); return; }
+      existing.name = f.get('name').trim(); existing.role = role;
+      if (current.id === existing.id) { current.name = existing.name; current.role = role; $('#user-name').textContent = current.name; $('#user-avatar').textContent = current.name[0]?.toUpperCase() || 'U'; $('#user-role').textContent = isAdmin() ? 'Administrador' : 'Usuário'; }
+      render(); toast('Conta atualizada.');
+    });
   });
 }
 
@@ -247,14 +291,14 @@ function deleteShift(date) { delete db.shifts[date]; save(); render(); }
 function deleteMedication(id) { if (!confirm('Excluir este remédio?')) return; db.medications = db.medications.filter(m => m.id !== id); Object.values(db.doses).forEach(a => { const i = a.findIndex(d => d.medId === id); if (i >= 0) a.splice(i, 1); }); save(); render(); toast('Remédio excluído.'); }
 function deleteMeasurement(id) { if (!confirm('Excluir esta medição?')) return; db.measurements = db.measurements.filter(m => m.id !== id); save(); render(); }
 function deletePerson(id) { if (!isAdmin()) { toast('Apenas um administrador pode excluir pessoas.'); return; } if (!confirm('Excluir esta pessoa? Registros históricos associados serão mantidos.')) return; db.people = db.people.filter(p => p.id !== id); if (medFilterPerson === id) medFilterPerson = ''; save(); render(); }
-function changeRole(id, role) { if (!isAdmin()) { toast('Apenas um administrador pode alterar perfis.'); render(); return; } const user = db.users.find(u => u.id === id); if (user) { user.role = role; save(); toast('Perfil atualizado.'); } }
-function addUser() { if (!isAdmin()) { toast('Apenas um administrador pode criar usuários.'); return; } const name = $('#new-user-name').value.trim(), email = $('#new-user-email').value.trim().toLowerCase(), password = $('#new-user-pass').value; if (!name || !email || password.length < 6) { toast('Preencha nome, e-mail e senha com pelo menos 6 caracteres.'); return; } if (db.users.some(u => u.email === email)) { toast('Este e-mail já possui cadastro.'); return; } db.users.push({ id: uid(), name, email, password: btoa(unescape(encodeURIComponent(password))), role: 'user' }); save(); render(); toast('Usuário criado neste dispositivo.'); }
+function changeRole(id, role) { if (!isAdmin()) { toast('Apenas um administrador pode alterar perfis.'); render(); return; } const user = db.users.find(u => u.id === id); if (user) supabaseClient.rpc('update_family_member', { p_user_id: id, p_name: user.name, p_role: role }).then(({ error }) => { if (error) { toast(error.message); render(); return; } user.role = role; if (current.id === id) current.role = role; $('#user-role').textContent = isAdmin() ? 'Administrador' : 'Usuário'; toast('Perfil atualizado.'); }); }
+function addUser() { if (!isAdmin() || !familyInviteCode) { toast('Código de acesso familiar indisponível.'); return; } if (navigator.clipboard?.writeText) navigator.clipboard.writeText(familyInviteCode).then(() => toast('Código copiado. Compartilhe com o familiar.')).catch(() => prompt('Copie e compartilhe este código:', familyInviteCode)); else prompt('Copie e compartilhe este código:', familyInviteCode); }
 function toggleTheme() { db.theme = db.theme === 'dark' ? 'light' : 'dark'; save(); document.body.classList.toggle('dark', db.theme === 'dark'); render(); }
-function saveFamily() { db.family = $('#family-input').value.trim() || 'Minha família'; save(); $('#family-label').textContent = db.family; toast('Nome da família salvo.'); }
+function saveFamily() { if (!isAdmin()) return; db.family = $('#family-input').value.trim() || 'Minha família'; save(); $('#family-label').textContent = db.family; toast('Nome da família salvo.'); }
 
 function download(blob, filename) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000); }
-function exportBackup() { download(new Blob([JSON.stringify({ app: 'Saúde da Família', version: 1, exportedAt: new Date().toISOString(), data: db }, null, 2)], { type: 'application/json' }), `saude-da-familia-backup-${todayISO()}.json`); toast('Backup completo exportado.'); }
-function importBackup(e) { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => { try { const o = JSON.parse(reader.result), d = o.data; if ((o.app !== 'Lacos' && o.app !== 'Saúde da Família') || !d || !Array.isArray(d.users) || !Array.isArray(d.people) || !Array.isArray(d.medications) || !Array.isArray(d.measurements) || !d.shifts) throw Error(); if (!confirm('Importar este backup e substituir os dados atuais neste navegador?')) return; db = { ...fresh(), ...d }; save(); current = null; toast('Backup importado. Entre com uma conta restaurada.'); boot(); } catch { toast('Arquivo inválido ou não compatível com Saúde da Família.'); } e.target.value = ''; }; reader.readAsText(file); }
+function exportBackup() { download(new Blob([JSON.stringify({ app: 'Saúde da Família', version: 2, exportedAt: new Date().toISOString(), data: { ...db, users: [] } }, null, 2)], { type: 'application/json' }), `saude-da-familia-backup-${todayISO()}.json`); toast('Backup completo exportado sem dados de autenticação.'); }
+function importBackup(e) { const file = e.target.files[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => { try { const o = JSON.parse(reader.result), d = o.data; if ((o.app !== 'Lacos' && o.app !== 'Saúde da Família') || !d || !Array.isArray(d.people) || !Array.isArray(d.medications) || !Array.isArray(d.measurements) || !d.shifts) throw Error(); if (!confirm('Importar este backup para substituir os dados compartilhados desta família?')) return; db = { ...fresh(), ...d, users: db.users }; save(); toast('Backup importado e sincronizando com a família.'); render(); } catch { toast('Arquivo inválido ou não compatível com Saúde da Família.'); } e.target.value = ''; }; reader.readAsText(file); }
 
 function exportSchedule() {
   const year = calDate.getFullYear(), month = calDate.getMonth(), label = new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' }).format(calDate), canvas = document.createElement('canvas'), ctx = canvas.getContext('2d');
@@ -283,4 +327,27 @@ function drawChart() {
 
 Object.assign(window, { go, setMedFilter, shiftModal, medModal, measureModal, moveMonth, toggleDose, deleteShift, deleteMedication, deleteMeasurement, deletePerson, changeRole, personModal, userModal, addUser, toggleTheme, saveFamily, exportBackup, exportSchedule, exportDaily, exportMeasurementsImage, exportMeasurementsPdf });
 if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
-setAuth(); boot();
+async function initializeAuth() {
+  setAuth(); boot();
+  if (!supabaseClient) return;
+  const { data, error } = await supabaseClient.auth.getSession();
+  if (error) { toast(`Erro ao iniciar autenticação: ${error.message}`); return; }
+  if (data.session) await establishSession(data.session);
+  if (new URLSearchParams(location.hash.slice(1)).get('type') === 'recovery') {
+    const password = prompt('Digite a nova senha (mínimo 6 caracteres):');
+    if (password && password.length >= 6) {
+      const { error: updateError } = await supabaseClient.auth.updateUser({ password });
+      toast(updateError ? `Não foi possível atualizar: ${updateError.message}` : 'Senha atualizada.');
+    } else if (password) toast('A senha precisa ter pelo menos 6 caracteres.');
+    history.replaceState(null, '', location.pathname + location.search);
+  }
+  supabaseClient.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_OUT') { current = null; familyId = null; boot(); }
+    if (event === 'PASSWORD_RECOVERY') setTimeout(async () => {
+      const password = prompt('Digite a nova senha (mínimo 6 caracteres):');
+      if (password && password.length >= 6) { const { error: updateError } = await supabaseClient.auth.updateUser({ password }); toast(updateError ? updateError.message : 'Senha atualizada.'); }
+      else if (password) toast('A senha precisa ter pelo menos 6 caracteres.');
+    }, 0);
+  });
+}
+initializeAuth();
