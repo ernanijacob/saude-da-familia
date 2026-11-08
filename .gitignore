@@ -1,0 +1,15 @@
+# Runtime control files created by the local server scripts
+.saude-da-familia-server-port
+.saude-da-familia-server-stop
+.lacos-server-port
+.lacos-server-stop
+
+# Local Windows shortcut (contains this machine's absolute path)
+*.lnk
+
+# Local tooling output
+node_modules/
+dist/
+coverage/
+.DS_Store
+Thumbs.db

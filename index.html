@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f5f7f2"><meta name="description" content="Organização familiar de turnos, remédios e medições de saúde.">
+  <title>Saúde da Família</title><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon-saude.svg"><link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="auth" class="auth-wrap"><div class="auth-card"><img class="brand-icon" src="icon-saude.svg" alt="Saúde da Família"><p class="eyebrow">CUIDADO COMPARTILHADO</p><h1>Saúde da Família</h1><p class="muted">A rotina de cuidado da família, em um só lugar.</p>
+    <form id="auth-form"><label>Seu nome<input name="name" autocomplete="name" placeholder="Como podemos chamar você?" required></label><label>E-mail<input name="email" type="email" autocomplete="email" placeholder="voce@exemplo.com" required></label><label>Senha<input name="password" type="password" autocomplete="current-password" minlength="6" placeholder="Mínimo de 6 caracteres" required></label><button class="primary wide" id="auth-submit">Criar conta</button></form>
+    <div class="auth-actions"><button class="text-button" id="auth-toggle">Já tenho uma conta</button><button class="text-button" id="forgot">Esqueci a senha</button></div><p class="tiny">Primeira conta criada neste dispositivo recebe perfil de administrador. Os dados ficam armazenados localmente neste navegador.</p>
+  </div></div>
+  <div id="app" class="shell hidden">
+    <aside class="sidebar"><a class="logo" href="#"><img class="brand-icon" src="icon-saude.svg" alt=""><span>Saúde da Família<small>cuidado compartilhado</small></span></a><div class="family-switch"><span class="avatar">♥</span><span><b id="family-label">Minha família</b><small>Espaço familiar</small></span><span class="chevron">⌄</span></div>
+      <nav id="nav"><button class="nav-item active" data-page="inicio"><span>⌂</span>Visão geral</button><button class="nav-item" data-page="escala"><span>▦</span>Escala de cuidadores</button><button class="nav-item" data-page="remedios"><span>✳</span>Remédios</button><button class="nav-item" data-page="medicoes"><span>⌁</span>Medições</button></nav>
+      <div class="sidebar-bottom"><button class="nav-item" data-page="sobre"><span>ⓘ</span>Sobre</button><button class="nav-item" data-page="config"><span>⚙</span>Configurações</button><div class="user-chip"><span class="avatar" id="user-avatar">A</span><span><b id="user-name">Usuário</b><small id="user-role">Administrador</small></span><button id="logout" title="Sair">↗</button></div></div>
+    </aside>
+    <main class="main"><header class="topbar"><div><span id="today-label" class="muted"></span><h1 id="page-title">Visão geral</h1></div><div class="top-actions"><button class="icon-button" id="theme-toggle" title="Alternar tema">◐</button><button class="primary" id="quick-add">＋ <span>Novo registro</span></button></div></header><div id="content" class="content"></div><footer>Saúde da Família · Seus dados permanecem neste dispositivo.</footer></main>
+    <nav class="mobile-nav" id="mobile-nav"><button data-page="inicio">⌂<small>Início</small></button><button data-page="escala">▦<small>Escala</small></button><button data-page="remedios">✳<small>Remédios</small></button><button data-page="medicoes">⌁<small>Medições</small></button><button data-page="config">⚙<small>Ajustes</small></button><button data-page="sobre">ⓘ<small>Sobre</small></button></nav>
+  </div>
+  <dialog id="modal"><form method="dialog" id="modal-form"><div class="modal-head"><div><p class="eyebrow" id="modal-kicker">NOVO REGISTRO</p><h2 id="modal-title"></h2></div><button class="icon-button" type="button" aria-label="Fechar" onclick="document.querySelector('#modal').close()">×</button></div><div id="modal-body"></div><div class="modal-actions"><button class="secondary" type="button" onclick="document.querySelector('#modal').close()">Cancelar</button><button class="primary" id="modal-save" type="submit">Salvar</button></div></form></dialog>
+  <div id="toast" class="toast"></div><script src="app.js"></script>
+</body></html>
