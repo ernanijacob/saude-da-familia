@@ -98,6 +98,7 @@ async function establishSession(session) {
   const { data: profile } = await supabaseClient.from('profiles').select('display_name').eq('id', current.id).maybeSingle();
   if (profile?.display_name) current.name = profile.display_name;
   $('#user-name').textContent = current.name; $('#user-avatar').textContent = current.name[0]?.toUpperCase() || 'U';
+  $('#mobile-user-name').textContent = current.name; $('#mobile-user-avatar').textContent = current.name[0]?.toUpperCase() || 'U';
 }
 function boot() {
   if (!current) { $('#auth').classList.remove('hidden'); $('#app').classList.add('hidden'); if (!supabaseClient) $('#auth-help').textContent = 'Antes de usar, configure SUPABASE_URL e SUPABASE_ANON_KEY no arquivo supabase-config.js.'; return; }
@@ -105,9 +106,11 @@ function boot() {
   document.body.classList.toggle('dark', db.theme === 'dark');
   $('#user-name').textContent = current.name; $('#user-avatar').textContent = current.name[0]?.toUpperCase() || 'U';
   $('#user-role').textContent = isAdmin() ? 'Administrador' : 'Usuário'; $('#family-label').textContent = db.family || 'Minha família';
+  $('#mobile-user-name').textContent = current.name; $('#mobile-user-avatar').textContent = current.name[0]?.toUpperCase() || 'U'; $('#mobile-user-role').textContent = isAdmin() ? 'Administrador' : 'Usuário';
   $('#today-label').textContent = new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }); render();
 }
 $('#logout').onclick = async () => { await supabaseClient?.auth.signOut(); current = null; familyId = null; boot(); };
+$('#mobile-logout').onclick = () => $('#logout').click();
 $('#theme-toggle').onclick = toggleTheme;
 $$('[data-page]').forEach(b => b.onclick = () => go(b.dataset.page));
 function go(p) {
@@ -283,7 +286,7 @@ function userModal(id) {
     supabaseClient.rpc('update_family_member', { p_user_id: existing.id, p_name: f.get('name').trim(), p_role: role }).then(({ error }) => {
       if (error) { toast(error.message); return; }
       existing.name = f.get('name').trim(); existing.role = role;
-      if (current.id === existing.id) { current.name = existing.name; current.role = role; $('#user-name').textContent = current.name; $('#user-avatar').textContent = current.name[0]?.toUpperCase() || 'U'; $('#user-role').textContent = isAdmin() ? 'Administrador' : 'Usuário'; }
+      if (current.id === existing.id) { current.name = existing.name; current.role = role; $('#user-name').textContent = current.name; $('#user-avatar').textContent = current.name[0]?.toUpperCase() || 'U'; $('#user-role').textContent = isAdmin() ? 'Administrador' : 'Usuário'; $('#mobile-user-name').textContent = current.name; $('#mobile-user-avatar').textContent = current.name[0]?.toUpperCase() || 'U'; $('#mobile-user-role').textContent = isAdmin() ? 'Administrador' : 'Usuário'; }
       render(); toast('Conta atualizada.');
     });
   });
