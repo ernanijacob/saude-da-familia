@@ -173,7 +173,7 @@ function medsView() {
 function setMedFilter(personId) { medFilterPerson = personId; render(); }
 
 function measurementsView() {
-  return `<div class="welcome"><div><p class="eyebrow">ACOMPANHAMENTO DE SAÚDE</p><h2>Pequenos registros, mais cuidado.</h2><p>Acompanhe a pressão arterial e a glicemia ao longo do tempo.</p></div><button class="primary" onclick="measureModal()">＋ Registrar medição</button></div><section class="card"><div class="card-head"><div><h3>Visão mensal</h3><p>Medições registradas neste mês</p></div><select id="chart-person" style="width:auto;margin:0"><option value="">Todas as pessoas</option>${sortByName(db.people).map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></div><div class="chart-legend"><span><i class="legend-dot"></i> Pressão sistólica</span><span><i class="legend-dot blue"></i> Glicemia</span></div><div class="chart-wrap"><canvas id="measure-chart"></canvas></div></section><section class="card"><div class="card-head" style="flex-wrap:wrap"><div><h3>Histórico de medições</h3><p>Os registros mais recentes aparecem primeiro.</p></div><div class="med-table-actions" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px"><button class="secondary" onclick="exportMeasurementsImage()">▧ Exportar imagem</button><button class="secondary" onclick="exportMeasurementsPdf()">⇩ Exportar PDF</button></div></div>${db.measurements.length ? `<table class="table"><thead><tr><th>DATA</th><th>PESSOA</th><th>TIPO</th><th>VALOR</th><th>OBSERVAÇÃO</th><th></th></tr></thead><tbody>${db.measurements.slice().sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time)).map(m => `<tr><td>${dateFmt(m.date)}<br><small>${esc(m.time || '')}</small></td><td>${esc(personName(m.personId))}</td><td>${m.type === 'bp' ? 'Pressão' : 'Glicemia'}</td><td><b>${m.type === 'bp' ? `${m.sys}/${m.dia} mmHg` : `${m.value} mg/dL`}</b></td><td>${esc(m.note || '—')}</td><td><button onclick="measureModal('${m.id}')">Alterar</button> · <button onclick="deleteMeasurement('${m.id}')">Excluir</button></td></tr>`).join('')}</tbody></table>` : '<div class="empty">Nenhuma medição registrada. Os gráficos vão aparecer conforme a família registrar os valores.</div>'}<p class="tiny">Os gráficos servem para acompanhar registros e não substituem orientação de um profissional de saúde.</p></section>`;
+  return `<div class="welcome"><div><p class="eyebrow">ACOMPANHAMENTO DE SAÚDE</p><h2>Pequenos registros, mais cuidado.</h2><p>Acompanhe a pressão arterial e a glicemia ao longo do tempo.</p></div><button class="primary" onclick="measureModal()">＋ Registrar medição</button></div><section class="card"><div class="card-head"><div><h3>Visão mensal</h3><p>Medições registradas neste mês</p></div><select id="chart-person" style="width:auto;margin:0"><option value="">Todas as pessoas</option>${sortByName(db.people).map(p => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></div><div class="chart-legend"><span><i class="legend-dot"></i> Pressão sistólica</span><span><i class="legend-dot blue"></i> Glicemia</span></div><div class="chart-wrap"><canvas id="measure-chart" role="img" aria-label="Gráfico mensal. Toque em um ponto para ver a medição."></canvas><div class="chart-tooltip" id="chart-tooltip" role="status" aria-live="polite" hidden></div></div><p class="chart-hint">Toque em um ponto do gráfico para ver o valor exato.</p></section><section class="card"><div class="card-head" style="flex-wrap:wrap"><div><h3>Histórico de medições</h3><p>Os registros mais recentes aparecem primeiro.</p></div><div class="med-table-actions" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px"><button class="secondary" onclick="exportMeasurementsImage()">▧ Exportar imagem</button><button class="secondary" onclick="exportMeasurementsPdf()">⇩ Exportar PDF</button></div></div>${db.measurements.length ? `<table class="table"><thead><tr><th>DATA</th><th>PESSOA</th><th>TIPO</th><th>VALOR</th><th>OBSERVAÇÃO</th><th></th></tr></thead><tbody>${db.measurements.slice().sort((a, b) => (b.date + b.time).localeCompare(a.date + a.time)).map(m => `<tr><td>${dateFmt(m.date)}<br><small>${esc(m.time || '')}</small></td><td>${esc(personName(m.personId))}</td><td>${m.type === 'bp' ? 'Pressão' : 'Glicemia'}</td><td><b>${m.type === 'bp' ? `${m.sys}/${m.dia} mmHg` : `${m.value} mg/dL`}</b></td><td>${esc(m.note || '—')}</td><td><button onclick="measureModal('${m.id}')">Alterar</button> · <button onclick="deleteMeasurement('${m.id}')">Excluir</button></td></tr>`).join('')}</tbody></table>` : '<div class="empty">Nenhuma medição registrada. Os gráficos vão aparecer conforme a família registrar os valores.</div>'}<p class="tiny">Os gráficos servem para acompanhar registros e não substituem orientação de um profissional de saúde.</p></section>`;
 }
 
 function filteredMeasurements() {
@@ -321,14 +321,60 @@ function exportDaily() {
   canvas.toBlob(blob => download(blob, `rotina-${todayISO()}.png`));
 }
 function drawChart() {
-  const canvas = $('#measure-chart'); if (!canvas) return; const rect = canvas.getBoundingClientRect(), ratio = devicePixelRatio || 1; canvas.width = rect.width * ratio; canvas.height = rect.height * ratio; const ctx = canvas.getContext('2d'); ctx.scale(ratio, ratio);
-  const w = rect.width, h = rect.height, pad = { l: 38, r: 15, t: 14, b: 30 }, plotW = w - pad.l - pad.r, plotH = h - pad.t - pad.b, selected = $('#chart-person')?.value, month = todayISO().slice(0, 7), data = db.measurements.filter(m => m.date.startsWith(month) && (!selected || m.personId === selected));
-  ctx.clearRect(0, 0, w, h); ctx.font = '10px sans-serif'; ctx.strokeStyle = getComputedStyle(document.body).getPropertyValue('--line'); ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--muted');
-  for (let i = 0; i < 5; i++) { const y = pad.t + plotH * i / 4; ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(w - pad.r, y); ctx.stroke(); ctx.fillText(String(100 - i * 20), 3, y + 3); }
-  const days = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate(); for (let i = 1; i <= days; i += Math.ceil(days / 8)) ctx.fillText(String(i), pad.l + plotW * (i - 1) / (days - 1) - 4, h - 8);
-  const plot = (arr, key, color, min, max) => { if (!arr.length) return; arr.sort((a, b) => a.date.localeCompare(b.date)); ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 2; ctx.beginPath(); arr.forEach((m, i) => { const x = pad.l + plotW * (Number(m.date.slice(-2)) - 1) / (days - 1), y = pad.t + plotH * (1 - (m[key] - min) / (max - min)); if (!i) ctx.moveTo(x, y); else ctx.lineTo(x, y); }); ctx.stroke(); arr.forEach(m => { const x = pad.l + plotW * (Number(m.date.slice(-2)) - 1) / (days - 1), y = pad.t + plotH * (1 - (m[key] - min) / (max - min)); ctx.beginPath(); ctx.arc(x, y, 3.5, 0, Math.PI * 2); ctx.fill(); }); };
-  plot(data.filter(m => m.type === 'bp'), 'sys', '#27735a', 60, 200); plot(data.filter(m => m.type === 'glucose'), 'value', '#6496ae', 40, 300);
-  if (!data.length) { ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--muted'); ctx.font = '13px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('Sem medições neste mês', w / 2, h / 2); ctx.textAlign = 'left'; }
+  const canvas = $('#measure-chart'); if (!canvas) return;
+  const rect = canvas.getBoundingClientRect(); if (!rect.width || !rect.height) return;
+  const ratio = devicePixelRatio || 1; canvas.width = rect.width * ratio; canvas.height = rect.height * ratio;
+  const ctx = canvas.getContext('2d'); ctx.scale(ratio, ratio);
+  const w = rect.width, h = rect.height, pad = { l: 48, r: 50, t: 26, b: 32 }, plotW = w - pad.l - pad.r, plotH = h - pad.t - pad.b;
+  const selected = $('#chart-person')?.value || '', month = todayISO().slice(0, 7), data = db.measurements.filter(m => m.date?.startsWith(month) && (!selected || m.personId === selected));
+  const tooltip = $('#chart-tooltip'); if (tooltip) tooltip.hidden = true;
+  ctx.clearRect(0, 0, w, h); ctx.font = '11px sans-serif'; ctx.strokeStyle = getComputedStyle(document.body).getPropertyValue('--line'); ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--muted');
+  const niceMax = (values, fallback) => {
+    if (!values.length) return fallback;
+    const highest = Math.max(0, ...values.map(Number).filter(Number.isFinite));
+    const raw = Math.max(highest * 1.15 / 4, 1), power = 10 ** Math.floor(Math.log10(raw));
+    const step = [1, 2, 2.5, 5, 10].map(n => n * power).find(n => n >= raw) || 10 * power;
+    return Math.max(step * 4, step);
+  };
+  const bpMax = niceMax(data.filter(m => m.type === 'bp').map(m => m.sys), 200);
+  const glucoseMax = niceMax(data.filter(m => m.type === 'glucose').map(m => m.value), 300);
+  ctx.textAlign = 'left'; ctx.fillText('mmHg', 3, 13); ctx.textAlign = 'right'; ctx.fillText('mg/dL', w - 2, 13); ctx.textAlign = 'left';
+  for (let i = 0; i <= 4; i++) {
+    const y = pad.t + plotH * i / 4, leftValue = Math.round(bpMax * (4 - i) / 4), rightValue = Math.round(glucoseMax * (4 - i) / 4);
+    ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(w - pad.r, y); ctx.stroke();
+    ctx.fillText(String(leftValue), 3, y + 4); ctx.textAlign = 'right'; ctx.fillText(String(rightValue), w - 2, y + 4); ctx.textAlign = 'left';
+  }
+  const days = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate(), dayStep = Math.ceil(days / 8);
+  for (let i = 1; i <= days; i += dayStep) ctx.fillText(String(i), pad.l + plotW * (i - 1) / Math.max(days - 1, 1) - 4, h - 8);
+  const chartPoints = [];
+  const plot = (arr, key, color, max, type) => {
+    const sorted = arr.slice().sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || '')));
+    if (!sorted.length) return;
+    const pts = sorted.map(m => ({
+      x: pad.l + plotW * (Number(m.date.slice(-2)) - 1) / Math.max(days - 1, 1),
+      y: pad.t + plotH * (1 - Number(m[key]) / max),
+      label: type === 'bp' ? `Pressão arterial: ${m.sys}/${m.dia} mmHg` : `Glicemia: ${m.value} mg/dL`,
+      person: personName(m.personId), date: `${dateFmt(m.date)}${m.time ? ' · ' + m.time : ''}`, color
+    }));
+    ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 2; ctx.beginPath();
+    pts.forEach((point, i) => { if (!i) ctx.moveTo(point.x, point.y); else ctx.lineTo(point.x, point.y); }); ctx.stroke();
+    pts.forEach(point => { ctx.beginPath(); ctx.arc(point.x, point.y, 5, 0, Math.PI * 2); ctx.fill(); chartPoints.push(point); });
+  };
+  plot(data.filter(m => m.type === 'bp'), 'sys', '#27735a', bpMax, 'bp');
+  plot(data.filter(m => m.type === 'glucose'), 'value', '#6496ae', glucoseMax, 'glucose');
+  canvas.style.cursor = chartPoints.length ? 'pointer' : 'default';
+  canvas.onclick = event => {
+    if (!tooltip || !chartPoints.length) return;
+    const bounds = canvas.getBoundingClientRect(), x = event.clientX - bounds.left, y = event.clientY - bounds.top;
+    const matches = chartPoints.map(p => ({ ...p, distance: Math.hypot(p.x - x, p.y - y) })).filter(p => p.distance <= 22).sort((a, b) => a.distance - b.distance).slice(0, 4);
+    if (!matches.length) { tooltip.hidden = true; return; }
+    tooltip.innerHTML = matches.map(p => `<div class="chart-tooltip-row"><span class="chart-tooltip-dot" style="background:${p.color}"></span><span><b>${esc(p.label)}</b><small>${esc(p.person)} · ${esc(p.date)}</small></span></div>`).join('');
+    tooltip.hidden = false;
+    const left = Math.max(8, Math.min(x, rect.width - tooltip.offsetWidth - 8));
+    const top = Math.max(8, Math.min(y - tooltip.offsetHeight - 10, rect.height - tooltip.offsetHeight - 8));
+    tooltip.style.left = `${left}px`; tooltip.style.top = `${top}px`;
+  };
+  if (!data.length) { ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--muted'); ctx.font = '14px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('Sem medições neste mês', w / 2, h / 2); ctx.textAlign = 'left'; }
 }
 
 Object.assign(window, { go, setMedFilter, shiftModal, medModal, measureModal, moveMonth, toggleDose, deleteShift, deleteMedication, deleteMeasurement, deletePerson, changeRole, personModal, userModal, addUser, toggleTheme, saveFamily, exportBackup, exportSchedule, exportDaily, exportMeasurementsImage, exportMeasurementsPdf });
