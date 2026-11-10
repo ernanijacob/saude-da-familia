@@ -150,3 +150,6 @@ input[type="color"]{width:76px;height:42px;padding:4px;cursor:pointer}
 @media(max-width:650px){.medication-name-wrap:has(.medication-name-link[aria-expanded="true"]){position:static}.medication-hint{position:fixed;inset:auto 12px calc(96px + env(safe-area-inset-bottom)) 12px;width:auto;max-width:none;max-height:min(38vh,280px);overflow-y:auto;z-index:1000;touch-action:pan-y}}
 
 .medication-hint-mobile{position:fixed;inset:auto 14px calc(100px + env(safe-area-inset-bottom)) 14px;z-index:10000;display:flex;align-items:flex-start;gap:12px;max-height:min(40dvh,300px);overflow-y:auto;padding:16px 14px 16px 18px;border:1px solid var(--line);border-radius:14px;background:var(--surface);box-shadow:0 12px 36px #17251e40;color:var(--ink);font-size:17px;line-height:1.5;touch-action:pan-y}.medication-hint-mobile span{flex:1;white-space:pre-wrap}.medication-hint-mobile button{flex:none;width:40px;height:40px;margin:-6px -5px 0 0;border:0;border-radius:10px;background:var(--surface2);color:var(--ink);font-size:26px;line-height:1}
+
+.measurement-filters{display:flex;align-items:flex-end;flex-wrap:wrap;gap:10px}.measurement-filters label{min-width:150px;margin:0}.measurement-filters select,.measurement-filters input{width:100%;margin-top:5px}
+@media(max-width:650px){.measurement-filters{width:100%}.measurement-filters label{flex:1 1 145px;min-width:0}}
