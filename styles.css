@@ -146,3 +146,5 @@ input[type="color"]{width:76px;height:42px;padding:4px;cursor:pointer}
 @media(max-width:650px){.medication-hint{max-width:min(280px,calc(100vw - 52px));font-size:15px;padding:12px 14px}}
 
 .list-row:has(.medication-name-link[aria-expanded="true"]){position:relative;z-index:9}
+
+@media(max-width:650px){.medication-name-wrap:has(.medication-name-link[aria-expanded="true"]){position:static}.medication-hint{position:fixed;inset:auto 12px calc(96px + env(safe-area-inset-bottom)) 12px;width:auto;max-width:none;max-height:min(38vh,280px);overflow-y:auto;z-index:1000;touch-action:pan-y}}
