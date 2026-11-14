@@ -8,6 +8,7 @@
 *.lnk
 
 # Local tooling output
+.vscode/
 node_modules/
 dist/
 coverage/
