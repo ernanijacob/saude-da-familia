@@ -11,6 +11,25 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<'
 const fresh = () => ({ users: [], people: [], shifts: {}, medications: [], doses: {}, measurements: [], theme: 'light', family: 'Minha família' });
 let db = (() => { try { return { ...fresh(), ...JSON.parse(localStorage.getItem(KEY) || '{}') }; } catch { return fresh(); } })();
 let current = null, page = 'inicio', calDate = new Date(), authMode = 'login', medFilterPerson = '', measurementPerson = '', measurementMonth = todayISO().slice(0, 7);
+let currentFontSize = localStorage.getItem('saude-familia-font-size') || 'normal';
+
+function applyFontSize(size) {
+  currentFontSize = size;
+  localStorage.setItem('saude-familia-font-size', size);
+  document.body.classList.toggle('font-large', size === 'large');
+  document.body.classList.toggle('font-xlarge', size === 'xlarge');
+  const label = size === 'normal' ? 'A+' : size === 'large' ? 'A++' : 'A';
+  $$('.text-size-toggle').forEach(btn => {
+    btn.innerHTML = `<span class="text-size-label"><b>${label}</b></span>`;
+    btn.title = size === 'normal' ? 'Aumentar letra (Tamanho Grande)' : size === 'large' ? 'Aumentar letra (Extra Grande)' : 'Tamanho padrão da letra';
+  });
+}
+
+function toggleFontSize() {
+  const next = currentFontSize === 'normal' ? 'large' : currentFontSize === 'large' ? 'xlarge' : 'normal';
+  applyFontSize(next);
+  toast(next === 'normal' ? 'Tamanho de letra padrão' : next === 'large' ? 'Letra grande ativada' : 'Letra extra grande ativada');
+}
 const supabaseClient = window.supabase?.createClient && window.SUPABASE_URL?.startsWith('https://') && !window.SUPABASE_URL.includes('YOUR-PROJECT') && window.SUPABASE_ANON_KEY && !window.SUPABASE_ANON_KEY.includes('YOUR_')
   ? window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY) : null;
 let familyId = null, familyInviteCode = '', syncQueue = Promise.resolve(), familyChannel = null;
@@ -41,7 +60,7 @@ function medicationNameMarkup(m) {
   const name = `<b>${esc(m.name)}</b>`, instructions = String(m.instructions || '').trim();
   if (!instructions) return name;
   const id = esc(m.id);
-  return `<span class="medication-name-wrap"><button type="button" class="medication-name-link" data-medication-hint="${id}" aria-expanded="false" aria-controls="medication-hint-${id}">${esc(m.name)}</button><span class="medication-hint" id="medication-hint-${id}" role="tooltip" hidden>${esc(instructions)}</span></span>`;
+  return `<div class="med-name-block"><span class="medication-name-wrap"><button type="button" class="medication-name-link" data-medication-hint="${id}" aria-expanded="false" aria-controls="medication-hint-${id}">${esc(m.name)}</button><span class="medication-hint" id="medication-hint-${id}" role="tooltip" hidden>${esc(instructions)}</span></span><span class="med-instruction-tag">📋 ${esc(instructions)}</span></div>`;
 }
 function closeMedicationHints() {
   $$('.medication-name-link[aria-expanded="true"]').forEach(button => { button.setAttribute('aria-expanded', 'false'); const hint = document.getElementById(button.getAttribute('aria-controls')); if (hint) hint.hidden = true; });
@@ -125,6 +144,7 @@ async function establishSession(session) {
   $('#mobile-user-name').textContent = current.name; $('#mobile-user-avatar').textContent = current.name[0]?.toUpperCase() || 'U';
 }
 function boot() {
+  applyFontSize(currentFontSize);
   if (!current) { $('#auth').classList.remove('hidden'); $('#app').classList.add('hidden'); if (!supabaseClient) $('#auth-help').textContent = 'Antes de usar, configure SUPABASE_URL e SUPABASE_ANON_KEY no arquivo supabase-config.js.'; return; }
   $('#auth').classList.add('hidden'); $('#app').classList.remove('hidden');
   document.body.classList.toggle('dark', db.theme === 'dark');
@@ -136,6 +156,9 @@ function boot() {
 $('#logout').onclick = async () => { await supabaseClient?.auth.signOut(); current = null; familyId = null; boot(); };
 $('#mobile-logout').onclick = () => $('#logout').click();
 $('#theme-toggle').onclick = toggleTheme;
+$('#auth-theme-toggle').onclick = toggleTheme;
+$('#text-size-toggle').onclick = toggleFontSize;
+$('#auth-text-size-toggle').onclick = toggleFontSize;
 $$('[data-page]').forEach(b => b.onclick = () => go(b.dataset.page));
 function go(p) {
   page = p; $$('[data-page]').forEach(b => b.classList.toggle('active', b.dataset.page === p));
@@ -164,9 +187,9 @@ function home() {
   const date = todayISO(), doses = db.doses[date] || [], medicines = sortMedications(db.medications.filter(m => !m.endDate || m.endDate >= date)), displayedMedicines = medFilterPerson ? medicines.filter(m => m.personId === medFilterPerson) : medicines, done = doses.filter(x => x.done).length, measures = db.measurements.filter(x => x.date === date), shifts = db.shifts[date] || {};
   return `<div class="welcome"><div><p class="eyebrow">${esc(db.family || 'MINHA FAMÍLIA').toUpperCase()}</p><h2>O cuidado fica mais leve junto.</h2><p>Um resumo da rotina de hoje para quem você ama.</p></div><button class="primary" onclick="document.querySelector('#quick-add').click()">＋ Novo registro</button></div>
   <div class="stats"><div class="stat"><div class="stat-label">Pessoas <span class="stat-icon">♥</span></div><div class="stat-value">${db.people.length}</div><div class="stat-foot">na família</div></div><div class="stat"><div class="stat-label">Turnos de hoje <span class="stat-icon">▦</span></div><div class="stat-value">${(shifts.day ? 1 : 0) + (shifts.night ? 1 : 0)}<small style="font-size:13px;color:var(--muted)"> / 2</small></div><div class="stat-foot">dia e noite preenchidos</div></div><div class="stat"><div class="stat-label">Doses tomadas <span class="stat-icon">✳</span></div><div class="stat-value">${done}<small style="font-size:13px;color:var(--muted)"> / ${medicines.length}</small></div><div class="stat-foot">registradas hoje</div></div><div class="stat"><div class="stat-label">Medições <span class="stat-icon">⌁</span></div><div class="stat-value">${measures.length}</div><div class="stat-foot">registradas hoje</div></div></div>
-  <div class="grid-two"><section class="card"><div class="card-head"><div><h3>Quem está hoje</h3><p>${dateFmt(date)} · Hoje</p></div><button class="text-button" onclick="go('escala')">Ver escala →</button></div><div class="list-row"><span class="person-dot">☀</span><div class="row-main"><b>Turno do dia</b><small>${esc(shifts.day ? personName(shifts.day) : 'Ainda sem responsável')}</small></div><span class="badge">DIA</span></div><div class="list-row"><span class="person-dot green">☾</span><div class="row-main"><b>Turno da noite</b><small>${esc(shifts.night ? personName(shifts.night) : 'Ainda sem responsável')}</small></div><span class="badge">NOITE</span></div></section>
-  <section class="card"><div class="card-head"><div><h3>Medições de hoje</h3><p>Registros feitos hoje.</p></div><button class="text-button" onclick="go('medicoes')">Ver histórico →</button></div>${measures.slice().sort((a, b) => (b.time || '').localeCompare(a.time || '')).map(m => `<div class="list-row"><span class="person-dot green">⌁</span><div class="row-main"><b>${esc(personName(m.personId))} · ${m.type === 'bp' ? 'Pressão arterial' : 'Glicemia'}</b><small>${dateFmt(m.date)} · ${esc(m.time || '')}</small></div><b>${m.type === 'bp' ? `${m.sys}/${m.dia} mmHg` : `${m.value} mg/dL`}</b></div>`).join('') || '<div class="empty">Nenhuma medição registrada hoje.</div>'}</section></div>
-  <div class="grid-two"><section class="card"><div class="card-head" style="flex-wrap:wrap"><div><h3>Remédios de hoje</h3><p>Cuide de cada momento, no tempo certo.</p></div><div class="med-table-actions" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px">${medFilterSelect('med-person-filter-home')}<button class="secondary" onclick="exportMedicationsImage()">⇧ Exportar imagem</button></div></div>${displayedMedicines.length ? displayedMedicines.map(m => { const d = doses.find(x => x.medId === m.id), timing = [m.time, m.period].filter(Boolean).join(' · '); return `<div class="list-row"><span class="person-dot green">${medicationIcon(m.period)}</span><div class="row-main">${medicationNameMarkup(m)}<small>${esc(personName(m.personId))} · ${esc(m.dose)}${timing ? ' · ' + esc(timing) : ''}</small></div><button class="badge ${d?.done ? 'done' : 'due'}" onclick="toggleDose('${m.id}','${date}')">${d?.done ? '✓ Tomado' : 'Marcar tomado'}</button></div>`; }).join('') : '<div class="empty">Nenhum remédio encontrado para este filtro.</div>'}</section></div>`;
+  <div class="grid-two"><section class="card"><div class="card-head"><div><h3>Quem está hoje</h3><p>${dateFmt(date)} · Hoje</p></div><button class="text-button" onclick="go('escala')">Ver escala →</button></div><div class="list-row"><span class="person-dot">☀</span><div class="row-main"><b>Turno do dia</b><small>${esc(shifts.day ? personName(shifts.day) : 'Ainda sem responsável')}</small></div><span class="badge">DIA</span></div><div class="list-row"><span class="person-dot green">☾</span><div class="row-main"><b>Turno da noite</b><small>${esc(shifts.night ? personName(shifts.night) : 'Ainda sem responsável')}</small></div><span class="badge" style="background:var(--blue-light);color:var(--blue);border-color:var(--blue-border)">NOITE</span></div></section>
+  <section class="card"><div class="card-head"><div><h3>Medições de hoje</h3><p>Registros feitos hoje.</p></div><button class="text-button" onclick="go('medicoes')">Ver histórico →</button></div>${measures.slice().sort((a, b) => (b.time || '').localeCompare(a.time || '')).map(m => `<div class="list-row"><span class="person-dot green">🩺</span><div class="row-main"><b>${esc(personName(m.personId))} · ${m.type === 'bp' ? 'Pressão arterial' : 'Glicemia'}</b><small>${dateFmt(m.date)} · ${esc(m.time || '')}</small></div><b style="font-size:1.15rem">${m.type === 'bp' ? `${m.sys}/${m.dia} <small style="font-size:0.85em;color:var(--muted)">mmHg</small>` : `${m.value} <small style="font-size:0.85em;color:var(--muted)">mg/dL</small>`}</b></div>`).join('') || '<div class="empty">Nenhuma medição registrada hoje.</div>'}</section></div>
+  <div class="grid-two"><section class="card"><div class="card-head" style="flex-wrap:wrap"><div><h3>Remédios de hoje</h3><p>Cuide de cada momento, no tempo certo.</p></div><div class="med-table-actions" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px">${medFilterSelect('med-person-filter-home')}<button class="secondary" onclick="exportMedicationsImage()">⇧ Exportar imagem</button></div></div>${displayedMedicines.length ? displayedMedicines.map(m => { const d = doses.find(x => x.medId === m.id), timing = [m.time, m.period].filter(Boolean).join(' · '); return `<div class="list-row"><span class="person-dot green">${medicationIcon(m.period)}</span><div class="row-main">${medicationNameMarkup(m)}<small>${esc(personName(m.personId))} · ${esc(m.dose)}${timing ? ' · ' + esc(timing) : ''}</small></div><button class="badge ${d?.done ? 'done' : 'due'}" onclick="toggleDose('${m.id}','${date}')">${d?.done ? '✓ Já tomado' : '◯ Marcar como tomado'}</button></div>`; }).join('') : '<div class="empty">Nenhum remédio encontrado para este filtro.</div>'}</section></div>`;
 }
 
 function calendarView() {
@@ -411,9 +434,10 @@ function exportMedicationsImage() {
   if (!data.length) { ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--muted'); ctx.font = '14px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('Sem medições neste mês', w / 2, h / 2); ctx.textAlign = 'left'; }
 }
 
-Object.assign(window, { go, setMedFilter, shiftModal, medModal, measureModal, moveMonth, toggleDose, deleteShift, deleteMedication, deleteMeasurement, deletePerson, changeRole, personModal, userModal, addUser, toggleTheme, saveFamily, exportBackup, exportSchedule, exportMedicationsImage, exportMeasurementsImage, exportMeasurementsPdf });
+Object.assign(window, { go, setMedFilter, shiftModal, medModal, measureModal, moveMonth, toggleDose, deleteShift, deleteMedication, deleteMeasurement, deletePerson, changeRole, personModal, userModal, addUser, toggleTheme, toggleFontSize, saveFamily, exportBackup, exportSchedule, exportMedicationsImage, exportMeasurementsImage, exportMeasurementsPdf });
 if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
 async function initializeAuth() {
+  applyFontSize(currentFontSize);
   authMode = 'login'; setAuth(); boot();
   if (!supabaseClient) return;
   const { data, error } = await supabaseClient.auth.getSession();

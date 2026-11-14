@@ -1,23 +1,163 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#f5f7f2"><meta name="description" content="Organização familiar de turnos, remédios e medições de saúde.">
-  <title>Saúde da Família</title><link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icon-saude.svg"><link rel="stylesheet" href="styles.css">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f8faf8">
+  <meta name="description" content="Organização familiar de turnos, remédios e medições de saúde com layout acessível e acolhedor.">
+  <title>Saúde da Família</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon-saude.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div id="auth" class="auth-wrap"><div class="auth-card"><img class="brand-icon" src="icon-saude.svg" alt="Saúde da Família"><p class="eyebrow">CUIDADO COMPARTILHADO</p><h1>Saúde da Família</h1><p class="muted">A rotina de cuidado da família, em um só lugar.</p>
-    <form id="auth-form"><label id="name-label" hidden>Seu nome<input name="name" autocomplete="name" placeholder="Como podemos chamar você?"></label><label id="family-name-label" hidden>Nome da família<input name="familyName" autocomplete="organization" placeholder="Ex.: Família Silva"></label><label id="invite-code-label" hidden>Código para entrar em uma família existente<input name="inviteCode" autocomplete="off" placeholder="Deixe vazio para criar nova família"></label><label>E-mail<input name="email" type="email" autocomplete="email" placeholder="voce@exemplo.com" required></label><label>Senha<input name="password" type="password" autocomplete="current-password" minlength="6" placeholder="Mínimo de 6 caracteres" required></label><button class="primary wide" id="auth-submit">Entrar</button></form>
-    <div class="auth-actions"><button class="text-button" id="auth-toggle">Criar uma conta</button><button class="text-button" id="forgot">Esqueci a senha</button></div><p class="tiny" id="auth-help">Entre com sua conta para acessar os dados sincronizados da família.</p>
-  </div></div>
-  <div id="app" class="shell hidden">
-    <aside class="sidebar"><a class="logo" href="#"><img class="brand-icon" src="icon-saude.svg" alt=""><span>Saúde da Família<small>cuidado compartilhado</small></span></a><div class="family-switch"><span class="avatar">♥</span><span><b id="family-label">Minha família</b><small>Espaço familiar</small></span><span class="chevron">⌄</span></div>
-      <nav id="nav"><button class="nav-item active" data-page="inicio"><span>⌂</span>Visão geral</button><button class="nav-item" data-page="escala"><span>▦</span>Escala de cuidadores</button><button class="nav-item" data-page="remedios"><span>✳</span>Remédios</button><button class="nav-item" data-page="medicoes"><span>⌁</span>Medições</button></nav>
-      <div class="sidebar-bottom"><button class="nav-item" data-page="config"><span>⚙</span>Configurações</button><div class="user-chip"><span class="avatar" id="user-avatar">A</span><span><b id="user-name">Usuário</b><small id="user-role">Administrador</small></span><button id="logout" title="Sair">↗</button></div></div>
-    </aside>
-    <main class="main"><header class="topbar"><div><span id="today-label" class="muted"></span><h1 id="page-title">Visão geral</h1></div><div class="top-actions"><button class="icon-button" id="theme-toggle" title="Alternar tema">◐</button><button class="primary" id="quick-add">＋ <span>Novo registro</span></button></div></header><div class="mobile-account" id="mobile-account"><span class="avatar" id="mobile-user-avatar">U</span><span class="mobile-account-info"><strong id="mobile-user-name">Usuário</strong><small id="mobile-user-role">Usuário</small></span><button type="button" id="mobile-logout" aria-label="Sair da conta">Sair ↗</button></div><div id="content" class="content"></div><footer>Saúde da Família · Dados sincronizados com o espaço familiar.</footer></main>
-    <nav class="mobile-nav" id="mobile-nav"><button data-page="inicio">⌂<small>Início</small></button><button data-page="escala">▦<small>Escala</small></button><button data-page="remedios">✳<small>Remédios</small></button><button data-page="medicoes">⌁<small>Medições</small></button><button data-page="config">⚙<small>Ajustes</small></button></nav>
+  <div id="auth" class="auth-wrap">
+    <div class="auth-card">
+      <div class="auth-header-actions">
+        <button class="icon-button text-size-toggle" id="auth-text-size-toggle" title="Aumentar tamanho do texto" aria-label="Aumentar tamanho do texto">A+</button>
+        <button class="icon-button" id="auth-theme-toggle" title="Alternar tema claro/escuro" aria-label="Alternar tema">◐</button>
+      </div>
+      <div class="brand-hero">
+        <img class="brand-icon" src="icon-saude.svg" alt="Ícone Saúde da Família">
+        <p class="eyebrow">CUIDADO COMPARTILHADO</p>
+        <h1>Saúde da Família</h1>
+        <p class="muted">A rotina de cuidado e bem-estar de quem você ama, em um só lugar.</p>
+      </div>
+      <form id="auth-form">
+        <label id="name-label" hidden>Seu nome completo
+          <input name="name" autocomplete="name" placeholder="Como podemos chamar você?">
+        </label>
+        <label id="family-name-label" hidden>Nome da família
+          <input name="familyName" autocomplete="organization" placeholder="Ex.: Família Silva">
+        </label>
+        <label id="invite-code-label" hidden>Código para entrar em uma família existente
+          <input name="inviteCode" autocomplete="off" placeholder="Deixe vazio se for criar uma nova família">
+        </label>
+        <label>Seu e-mail
+          <input name="email" type="email" autocomplete="email" placeholder="exemplo@email.com" required>
+        </label>
+        <label>Sua senha
+          <input name="password" type="password" autocomplete="current-password" minlength="6" placeholder="Mínimo de 6 caracteres" required>
+        </label>
+        <button class="primary wide" id="auth-submit">Entrar no aplicativo</button>
+      </form>
+      <div class="auth-actions">
+        <button class="text-button" id="auth-toggle">Criar uma conta nova</button>
+        <button class="text-button" id="forgot">Esqueci a senha</button>
+      </div>
+      <p class="tiny" id="auth-help">Entre com sua conta para acessar os dados sincronizados da família.</p>
+    </div>
   </div>
-  <dialog id="modal"><form method="dialog" id="modal-form"><div class="modal-head"><div><p class="eyebrow" id="modal-kicker">NOVO REGISTRO</p><h2 id="modal-title"></h2></div><button class="icon-button" type="button" aria-label="Fechar" onclick="document.querySelector('#modal').close()">×</button></div><div id="modal-body"></div><div class="modal-actions"><button class="secondary" type="button" onclick="document.querySelector('#modal').close()">Cancelar</button><button class="primary" id="modal-save" type="submit">Salvar</button></div></form></dialog>
-  <div id="toast" class="toast"></div><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script><script src="supabase-config.js"></script><script src="app.js"></script>
-</body></html>
+
+  <div id="app" class="shell hidden">
+    <aside class="sidebar">
+      <a class="logo" href="#">
+        <img class="brand-icon" src="icon-saude.svg" alt="">
+        <span>Saúde da Família<small>Cuidado compartilhado</small></span>
+      </a>
+      <div class="family-switch">
+        <span class="avatar">♥</span>
+        <span>
+          <b id="family-label">Minha família</b>
+          <small>Espaço familiar ativo</small>
+        </span>
+      </div>
+      <nav id="nav">
+        <button class="nav-item active" data-page="inicio"><span>🏠</span>Visão geral</button>
+        <button class="nav-item" data-page="escala"><span>👥</span>Cuidadores e turnos</button>
+        <button class="nav-item" data-page="remedios"><span>💊</span>Remédios do dia</button>
+        <button class="nav-item" data-page="medicoes"><span>🩺</span>Medições de saúde</button>
+      </nav>
+      <div class="sidebar-bottom">
+        <button class="nav-item" data-page="config"><span>⚙️</span>Configurações</button>
+        <div class="user-chip">
+          <span class="avatar" id="user-avatar">A</span>
+          <span>
+            <b id="user-name">Usuário</b>
+            <small id="user-role">Administrador</small>
+          </span>
+          <button id="logout" title="Sair da conta" aria-label="Sair">↗</button>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <span id="today-label" class="muted"></span>
+          <h1 id="page-title">Visão geral</h1>
+        </div>
+        <div class="top-actions">
+          <button class="icon-button text-size-toggle" id="text-size-toggle" title="Alterar tamanho da letra para facilitar a leitura" aria-label="Alterar tamanho da letra">
+            <span class="text-size-label">A+</span>
+          </button>
+          <button class="icon-button" id="theme-toggle" title="Alternar tema claro/escuro" aria-label="Alternar tema">◐</button>
+          <button class="primary" id="quick-add">＋ <span>Novo registro</span></button>
+        </div>
+      </header>
+
+      <div class="mobile-account" id="mobile-account">
+        <span class="avatar" id="mobile-user-avatar">U</span>
+        <div class="mobile-account-info">
+          <strong id="mobile-user-name">Usuário</strong>
+          <small id="mobile-user-role">Usuário</small>
+        </div>
+        <button type="button" id="mobile-logout" aria-label="Sair da conta">Sair ↗</button>
+      </div>
+
+      <div id="content" class="content"></div>
+
+      <footer>Saúde da Família · Dados sincronizados com o espaço familiar.</footer>
+    </main>
+
+    <nav class="mobile-nav" id="mobile-nav" aria-label="Navegação principal">
+      <button data-page="inicio">
+        <span class="nav-icon">🏠</span>
+        <small>Início</small>
+      </button>
+      <button data-page="escala">
+        <span class="nav-icon">👥</span>
+        <small>Cuidadores</small>
+      </button>
+      <button data-page="remedios">
+        <span class="nav-icon">💊</span>
+        <small>Remédios</small>
+      </button>
+      <button data-page="medicoes">
+        <span class="nav-icon">🩺</span>
+        <small>Medições</small>
+      </button>
+      <button data-page="config">
+        <span class="nav-icon">⚙️</span>
+        <small>Ajustes</small>
+      </button>
+    </nav>
+  </div>
+
+  <dialog id="modal">
+    <form method="dialog" id="modal-form">
+      <div class="modal-head">
+        <div>
+          <p class="eyebrow" id="modal-kicker">NOVO REGISTRO</p>
+          <h2 id="modal-title">Título</h2>
+        </div>
+        <button class="icon-button modal-close-btn" type="button" aria-label="Fechar" onclick="document.querySelector('#modal').close()">✕</button>
+      </div>
+      <div id="modal-body"></div>
+      <div class="modal-actions">
+        <button class="secondary" type="button" onclick="document.querySelector('#modal').close()">Cancelar</button>
+        <button class="primary" id="modal-save" type="submit">Salvar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
