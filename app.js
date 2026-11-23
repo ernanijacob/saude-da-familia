@@ -178,7 +178,7 @@ function home() {
             ${m.period ? `<span class="med-period-badge ${periodClass}">${medicationIcon(m.period)} ${esc(m.period)}</span>` : ''}
           </div>
           <div class="med-card-meta">
-            <span class="med-meta-item">👤 Paciente: <strong>${esc(personName(m.personId))}</strong></span>
+            <span class="med-meta-item">👤 <strong>${esc(personName(m.personId))}</strong></span>
             <span class="med-meta-sep">•</span>
             <span class="med-meta-item">Dose: <strong>${esc(m.dose)}</strong></span>
             ${m.time ? `<span class="med-meta-sep">•</span><span class="med-meta-item">⏰ <strong>${esc(m.time)}</strong></span>` : ''}
