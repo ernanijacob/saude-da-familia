@@ -56,30 +56,6 @@ function sortMedications(items) {
   return items.slice().sort((a, b) => personName(a.personId).localeCompare(personName(b.personId), 'pt-BR', { sensitivity: 'base' }) || periodRank(a.period) - periodRank(b.period) || (a.period || '').localeCompare(b.period || '', 'pt-BR', { sensitivity: 'base' }) || a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' }));
 }
 function medicationIcon(period) { return ({ 'Manhã': '🌅', 'Tarde': '☀️', 'Noite': '☾' })[period] || '✳'; }
-function medicationNameMarkup(m) {
-  const name = `<b>${esc(m.name)}</b>`, instructions = String(m.instructions || '').trim();
-  if (!instructions) return name;
-  const id = esc(m.id);
-  return `<div class="med-name-block"><span class="medication-name-wrap"><button type="button" class="medication-name-link" data-medication-hint="${id}" aria-expanded="false" aria-controls="medication-hint-${id}">${esc(m.name)}</button><span class="medication-hint" id="medication-hint-${id}" role="tooltip" hidden>${esc(instructions)}</span></span><span class="med-instruction-tag">📋 ${esc(instructions)}</span></div>`;
-}
-function closeMedicationHints() {
-  $$('.medication-name-link[aria-expanded="true"]').forEach(button => { button.setAttribute('aria-expanded', 'false'); const hint = document.getElementById(button.getAttribute('aria-controls')); if (hint) hint.hidden = true; });
-  document.querySelector('.medication-hint-mobile')?.remove();
-}
-function toggleMedicationHint(button) {
-  const opening = button.getAttribute('aria-expanded') !== 'true';
-  closeMedicationHints();
-  if (!opening) return;
-  const hint = document.getElementById(button.getAttribute('aria-controls'));
-  if (!hint) return;
-  button.setAttribute('aria-expanded', 'true');
-  if (window.matchMedia('(max-width: 650px)').matches) {
-    const popup = document.createElement('div'); popup.className = 'medication-hint-mobile'; popup.setAttribute('role', 'status');
-    const text = document.createElement('span'); text.textContent = hint.textContent; popup.append(text);
-    const close = document.createElement('button'); close.type = 'button'; close.setAttribute('aria-label', 'Fechar instruções'); close.textContent = '×'; close.onclick = event => { event.stopPropagation(); closeMedicationHints(); }; popup.append(close);
-    document.body.append(popup);
-  } else hint.hidden = false;
-}
 function isAdmin() { return current?.role === 'admin'; }
 
 function setAuth() {
@@ -189,7 +165,36 @@ function home() {
   <div class="stats"><div class="stat"><div class="stat-label">Pessoas <span class="stat-icon">♥</span></div><div class="stat-value">${db.people.length}</div><div class="stat-foot">na família</div></div><div class="stat"><div class="stat-label">Turnos de hoje <span class="stat-icon">▦</span></div><div class="stat-value">${(shifts.day ? 1 : 0) + (shifts.night ? 1 : 0)}<small style="font-size:13px;color:var(--muted)"> / 2</small></div><div class="stat-foot">dia e noite preenchidos</div></div><div class="stat"><div class="stat-label">Doses tomadas <span class="stat-icon">✳</span></div><div class="stat-value">${done}<small style="font-size:13px;color:var(--muted)"> / ${medicines.length}</small></div><div class="stat-foot">registradas hoje</div></div><div class="stat"><div class="stat-label">Medições <span class="stat-icon">⌁</span></div><div class="stat-value">${measures.length}</div><div class="stat-foot">registradas hoje</div></div></div>
   <div class="grid-two"><section class="card"><div class="card-head"><div><h3>Quem está hoje</h3><p>${dateFmt(date)} · Hoje</p></div><button class="text-button" onclick="go('escala')">Ver escala →</button></div><div class="list-row"><span class="person-dot">☀</span><div class="row-main"><b>Turno do dia</b><small>${esc(shifts.day ? personName(shifts.day) : 'Ainda sem responsável')}</small></div><span class="badge">DIA</span></div><div class="list-row"><span class="person-dot green">☾</span><div class="row-main"><b>Turno da noite</b><small>${esc(shifts.night ? personName(shifts.night) : 'Ainda sem responsável')}</small></div><span class="badge" style="background:var(--blue-light);color:var(--blue);border-color:var(--blue-border)">NOITE</span></div></section>
   <section class="card"><div class="card-head"><div><h3>Medições de hoje</h3><p>Registros feitos hoje.</p></div><button class="text-button" onclick="go('medicoes')">Ver histórico →</button></div>${measures.slice().sort((a, b) => (b.time || '').localeCompare(a.time || '')).map(m => `<div class="list-row"><span class="person-dot green">🩺</span><div class="row-main"><b>${esc(personName(m.personId))} · ${m.type === 'bp' ? 'Pressão arterial' : 'Glicemia'}</b><small>${dateFmt(m.date)} · ${esc(m.time || '')}</small></div><b style="font-size:1.15rem">${m.type === 'bp' ? `${m.sys}/${m.dia} <small style="font-size:0.85em;color:var(--muted)">mmHg</small>` : `${m.value} <small style="font-size:0.85em;color:var(--muted)">mg/dL</small>`}</b></div>`).join('') || '<div class="empty">Nenhuma medição registrada hoje.</div>'}</section></div>
-  <div class="grid-two"><section class="card"><div class="card-head" style="flex-wrap:wrap"><div><h3>Remédios de hoje</h3><p>Cuide de cada momento, no tempo certo.</p></div><div class="med-table-actions" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px">${medFilterSelect('med-person-filter-home')}<button class="secondary" onclick="exportMedicationsImage()">⇧ Exportar imagem</button></div></div>${displayedMedicines.length ? displayedMedicines.map(m => { const d = doses.find(x => x.medId === m.id), timing = [m.time, m.period].filter(Boolean).join(' · '); return `<div class="list-row"><span class="person-dot green">${medicationIcon(m.period)}</span><div class="row-main">${medicationNameMarkup(m)}<small>${esc(personName(m.personId))} · ${esc(m.dose)}${timing ? ' · ' + esc(timing) : ''}</small></div><button class="badge ${d?.done ? 'done' : 'due'}" onclick="toggleDose('${m.id}','${date}')">${d?.done ? '✓ Já tomado' : '◯ Marcar como tomado'}</button></div>`; }).join('') : '<div class="empty">Nenhum remédio encontrado para este filtro.</div>'}</section></div>`;
+  <div class="grid-two"><section class="card med-home-card"><div class="card-head" style="flex-wrap:wrap"><div><h3>Remédios de hoje</h3><p>Cuide de cada momento, no tempo certo.</p></div><div class="med-table-actions" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px">${medFilterSelect('med-person-filter-home')}<button class="secondary" onclick="exportMedicationsImage()">⇧ Exportar imagem</button></div></div>${displayedMedicines.length ? `<div class="med-cards-list">${displayedMedicines.map(m => {
+    const d = doses.find(x => x.medId === m.id);
+    const isDone = Boolean(d?.done);
+    const periodClass = ({ 'Manhã': 'med-period-manha', 'Tarde': 'med-period-tarde', 'Noite': 'med-period-noite' })[m.period] || '';
+    return `<div class="med-status-card ${isDone ? 'is-done' : 'is-pending'}">
+      <div class="med-status-bar" aria-hidden="true"></div>
+      <div class="med-card-body">
+        <div class="med-card-info">
+          <div class="med-card-header">
+            <span class="med-card-title">${esc(m.name)}</span>
+            ${m.period ? `<span class="med-period-badge ${periodClass}">${medicationIcon(m.period)} ${esc(m.period)}</span>` : ''}
+          </div>
+          <div class="med-card-meta">
+            <span class="med-meta-item">👤 Paciente: <strong>${esc(personName(m.personId))}</strong></span>
+            <span class="med-meta-sep">•</span>
+            <span class="med-meta-item">Dose: <strong>${esc(m.dose)}</strong></span>
+            ${m.time ? `<span class="med-meta-sep">•</span><span class="med-meta-item">⏰ <strong>${esc(m.time)}</strong></span>` : ''}
+            ${m.continuous ? `<span class="med-meta-sep">•</span><span class="med-meta-badge">Uso contínuo</span>` : ''}
+          </div>
+          ${m.instructions ? `<div class="med-card-instruction"><span class="med-instruction-icon">📋</span><span>${esc(m.instructions)}</span></div>` : ''}
+        </div>
+        <div class="med-card-action">
+          <button type="button" class="med-action-btn ${isDone ? 'done' : 'due'}" onclick="toggleDose('${m.id}','${date}')" aria-label="${isDone ? 'Desmarcar dose de ' + esc(m.name) : 'Marcar dose de ' + esc(m.name) + ' como tomada'}">
+            <span class="med-action-icon">${isDone ? '✓' : '◯'}</span>
+            <span class="med-action-text">${isDone ? 'Dose tomada' : 'Marcar como tomado'}</span>
+          </button>
+        </div>
+      </div>
+    </div>`;
+  }).join('')}</div>` : '<div class="empty">Nenhum remédio encontrado para este filtro.</div>'}</section></div>`;
 }
 
 function calendarView() {
@@ -214,7 +219,7 @@ function medsView() {
 }function setMedFilter(personId) { medFilterPerson = personId; render(); }
 
 function measurementsView() {
-  return `<div class="welcome"><div><p class="eyebrow">ACOMPANHAMENTO DE SAÚDE</p><h2>Pequenos registros, mais cuidado.</h2><p>Acompanhe a pressão arterial e a glicemia ao longo do tempo.</p></div><button class="primary" onclick="measureModal()">＋ Registrar medição</button></div><section class="card"><div class="card-head"><div><h3>Visão mensal</h3><p>Medições de ${esc(measurementMonthLabel())}</p></div><div class="measurement-filters"><label>Pessoa<select id="chart-person"><option value="" ${measurementPerson ? '' : 'selected'}>Todas as pessoas</option>${sortByName(db.people).map(p => `<option value="${p.id}" ${measurementPerson === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label><label>Mês e ano<input id="chart-month" type="month" value="${esc(measurementMonth)}"></label></div></div><div class="chart-legend"><span><i class="legend-dot"></i> Pressão sistólica</span><span><i class="legend-dot blue"></i> Glicemia</span></div><div class="chart-wrap"><canvas id="measure-chart" role="img" aria-label="Gráfico mensal. Toque em um ponto para ver a medição."></canvas><div class="chart-tooltip" id="chart-tooltip" role="status" aria-live="polite" hidden></div></div><p class="chart-hint">Toque em um ponto do gráfico para ver o valor exato.</p></section><section class="card"><div class="card-head" style="flex-wrap:wrap"><div><h3>Histórico de medições</h3><p>Os registros mais recentes aparecem primeiro.</p></div><div class="med-table-actions" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px"><button class="secondary" onclick="exportMeasurementsImage()">▧ Exportar imagem</button><button class="secondary" onclick="exportMeasurementsPdf()">⇩ Exportar PDF</button></div></div>${filteredMeasurements().length ? `<table class="table"><thead><tr><th>DATA</th><th>PESSOA</th><th>TIPO</th><th>VALOR</th><th>OBSERVAÇÃO</th><th></th></tr></thead><tbody>${filteredMeasurements().map(m => `<tr><td>${dateFmt(m.date)}<br><small>${esc(m.time || '')}</small></td><td>${esc(personName(m.personId))}</td><td>${m.type === 'bp' ? 'Pressão' : 'Glicemia'}</td><td><b>${m.type === 'bp' ? `${m.sys}/${m.dia} mmHg` : `${m.value} mg/dL`}</b></td><td>${esc(m.note || '—')}</td><td><button onclick="measureModal('${m.id}')">Alterar</button> · <button onclick="deleteMeasurement('${m.id}')">Excluir</button></td></tr>`).join('')}</tbody></table>` : '<div class="empty">Nenhuma medição encontrada para os filtros selecionados.</div>'}<p class="tiny">Os gráficos servem para acompanhar registros e não substituem orientação de um profissional de saúde.</p></section>`;
+  return `<div class="welcome"><div><p class="eyebrow">ACOMPANHAMENTO DE SAÚDE</p><h2>Pequenos registros, mais cuidado.</h2><p>Acompanhe a pressão arterial e a glicemia ao longo do tempo.</p></div><button class="primary" onclick="measureModal()">＋ Registrar medição</button></div><section class="card"><div class="card-head"><div><h3>Visão mensal</h3><p>Medições de ${esc(measurementMonthLabel())}</p></div><div class="measurement-filters"><label>Pessoa<select id="chart-person"><option value="" ${measurementPerson ? '' : 'selected'}>Todas as pessoas</option>${sortByName(db.people).map(p => `<option value="${p.id}" ${measurementPerson === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label><label>Mês e ano<input id="chart-month" type="month" value="${esc(measurementMonth)}"></label></div></div><div class="measurement-charts-grid"><div class="measurement-chart-box"><div class="chart-box-header"><div class="chart-title-wrap"><h4>Pressão arterial (Sistólica)</h4><span class="chart-unit-badge">mmHg</span></div><div class="chart-legend"><span><i class="legend-dot"></i> Pressão sistólica</span></div></div><div class="chart-wrap"><canvas id="bp-chart" role="img" aria-label="Gráfico mensal de pressão sistólica. Toque em um ponto para ver a medição."></canvas><div class="chart-tooltip" id="bp-chart-tooltip" role="status" aria-live="polite" hidden></div></div><p class="chart-hint">Toque em um ponto do gráfico para ver o valor exato.</p></div><div class="measurement-chart-box"><div class="chart-box-header"><div class="chart-title-wrap"><h4>Glicemia</h4><span class="chart-unit-badge blue">mg/dL</span></div><div class="chart-legend"><span><i class="legend-dot blue"></i> Glicemia</span></div></div><div class="chart-wrap"><canvas id="glucose-chart" role="img" aria-label="Gráfico mensal de glicemia. Toque em um ponto para ver a medição."></canvas><div class="chart-tooltip" id="glucose-chart-tooltip" role="status" aria-live="polite" hidden></div></div><p class="chart-hint">Toque em um ponto do gráfico para ver o valor exato.</p></div></div></section><section class="card"><div class="card-head" style="flex-wrap:wrap"><div><h3>Histórico de medições</h3><p>Os registros mais recentes aparecem primeiro.</p></div><div class="med-table-actions" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px"><button class="secondary" onclick="exportMeasurementsImage()">▧ Exportar imagem</button><button class="secondary" onclick="exportMeasurementsPdf()">⇩ Exportar PDF</button></div></div>${filteredMeasurements().length ? `<table class="table"><thead><tr><th>DATA</th><th>PESSOA</th><th>TIPO</th><th>VALOR</th><th>OBSERVAÇÃO</th><th></th></tr></thead><tbody>${filteredMeasurements().map(m => `<tr><td>${dateFmt(m.date)}<br><small>${esc(m.time || '')}</small></td><td>${esc(personName(m.personId))}</td><td>${m.type === 'bp' ? 'Pressão' : 'Glicemia'}</td><td><b>${m.type === 'bp' ? `${m.sys}/${m.dia} mmHg` : `${m.value} mg/dL`}</b></td><td>${esc(m.note || '—')}</td><td><button onclick="measureModal('${m.id}')">Alterar</button> · <button onclick="deleteMeasurement('${m.id}')">Excluir</button></td></tr>`).join('')}</tbody></table>` : '<div class="empty">Nenhuma medição encontrada para os filtros selecionados.</div>'}<p class="tiny">Os gráficos servem para acompanhar registros e não substituem orientação de um profissional de saúde.</p></section>`;
 }
 
 function measurementMonthLabel() {
@@ -238,13 +243,20 @@ function reportFilterLabel() {
   return `${personLabel} · ${measurementMonthLabel()}`;
 }
 function exportMeasurementsImage() {
-  const rows = measurementReportRows(), chart = $('#measure-chart'), canvas = document.createElement('canvas'), ctx = canvas.getContext('2d');
-  canvas.width = 1200; canvas.height = 500 + Math.max(rows.length, 1) * 58;
+  const rows = measurementReportRows(), bpChart = $('#bp-chart'), glucoseChart = $('#glucose-chart'), canvas = document.createElement('canvas'), ctx = canvas.getContext('2d');
+  canvas.width = 1200; canvas.height = 560 + Math.max(rows.length, 1) * 58;
   ctx.fillStyle = '#f5f7f2'; ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = '#24352e'; ctx.font = 'bold 34px sans-serif'; ctx.fillText('Histórico de medições', 42, 54);
   ctx.fillStyle = '#77857e'; ctx.font = '18px sans-serif'; ctx.fillText(`${reportFilterLabel()}`, 42, 84);
-  if (chart && chart.width && chart.height) ctx.drawImage(chart, 35, 105, 1130, 290);
-  let y = 430; ctx.fillStyle = '#27735a'; ctx.font = 'bold 16px sans-serif'; ctx.fillText('DATA', 45, y); ctx.fillText('PESSOA', 235, y); ctx.fillText('TIPO', 460, y); ctx.fillText('VALOR', 690, y); ctx.fillText('OBSERVAÇÃO', 870, y); y += 16;
+  if (bpChart && bpChart.width && glucoseChart && glucoseChart.width) {
+    ctx.drawImage(bpChart, 35, 105, 555, 270);
+    ctx.drawImage(glucoseChart, 610, 105, 555, 270);
+  } else if (bpChart && bpChart.width) {
+    ctx.drawImage(bpChart, 35, 105, 1130, 270);
+  } else if (glucoseChart && glucoseChart.width) {
+    ctx.drawImage(glucoseChart, 35, 105, 1130, 270);
+  }
+  let y = 410; ctx.fillStyle = '#27735a'; ctx.font = 'bold 16px sans-serif'; ctx.fillText('DATA', 45, y); ctx.fillText('PESSOA', 235, y); ctx.fillText('TIPO', 460, y); ctx.fillText('VALOR', 690, y); ctx.fillText('OBSERVAÇÃO', 870, y); y += 16;
   if (!rows.length) { ctx.fillStyle = '#77857e'; ctx.font = '15px sans-serif'; ctx.fillText('Nenhuma medição registrada.', 45, y + 26); y += 45; }
   rows.forEach((row, index) => { y += 12; ctx.fillStyle = index % 2 ? '#ffffff' : '#edf1ea'; ctx.fillRect(35, y, 1130, 48); ctx.fillStyle = '#24352e'; ctx.font = '14px sans-serif'; ctx.fillText(row.date, 45, y + 29); ctx.fillText(row.person.slice(0, 24), 235, y + 29); ctx.fillText(row.type, 460, y + 29); ctx.font = 'bold 14px sans-serif'; ctx.fillText(row.value, 690, y + 29); ctx.font = '14px sans-serif'; ctx.fillText(row.note.slice(0, 35), 870, y + 29); y += 48; });
   y += 28; ctx.fillStyle = '#77857e'; ctx.font = '12px sans-serif'; ctx.fillText('Os gráficos ajudam a acompanhar os registros e não substituem orientação profissional.', 42, y);
@@ -253,10 +265,12 @@ function exportMeasurementsImage() {
 function exportMeasurementsPdf() {
   const popup = window.open('', '_blank');
   if (!popup) { toast('Permita a abertura da janela para exportar o PDF.'); return; }
-  const rows = measurementReportRows(), chart = $('#measure-chart'), image = chart ? chart.toDataURL('image/png') : '';
+  const rows = measurementReportRows(), bpChart = $('#bp-chart'), glucoseChart = $('#glucose-chart');
+  const bpImage = bpChart ? bpChart.toDataURL('image/png') : '';
+  const glucoseImage = glucoseChart ? glucoseChart.toDataURL('image/png') : '';
   const tableRows = rows.map(r => `<tr><td>${esc(r.date)}</td><td>${esc(r.person)}</td><td>${esc(r.type)}</td><td>${esc(r.value)}</td><td>${esc(r.note)}</td></tr>`).join('');
   popup.document.open();
-  popup.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Relatório de medições</title><style>body{font:12px Arial,sans-serif;color:#24352e;margin:28px}h1{font-size:24px;margin:0 0 6px}.sub{color:#66736b;margin-bottom:18px}img{display:block;width:100%;max-height:320px;object-fit:contain;margin:12px 0 20px}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:8px;border-bottom:1px solid #dce3dc}th{color:#27735a;font-size:10px}footer{margin-top:20px;color:#66736b;font-size:10px}.no-print{margin:0 0 18px;padding:8px 14px}@media print{body{margin:12mm}.no-print{display:none}tr{break-inside:avoid}}</style></head><body><button class="no-print" onclick="window.print()">Imprimir ou salvar como PDF</button><h1>Histórico de medições</h1><div class="sub">${esc(reportFilterLabel())}</div>${image ? `<img alt="Gráfico mensal de medições" src="${image}">` : ''}<table><thead><tr><th>DATA</th><th>PESSOA</th><th>TIPO</th><th>VALOR</th><th>OBSERVAÇÃO</th></tr></thead><tbody>${tableRows || '<tr><td colspan="5">Nenhuma medição registrada.</td></tr>'}</tbody></table><footer>Os gráficos ajudam a acompanhar os registros e não substituem orientação profissional.</footer><script>window.onload=()=>setTimeout(()=>window.print(),300)</script></body></html>`);
+  popup.document.write(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>Relatório de medições</title><style>body{font:12px Arial,sans-serif;color:#24352e;margin:28px}h1{font-size:24px;margin:0 0 6px}.sub{color:#66736b;margin-bottom:18px}.charts-pdf{display:flex;gap:16px;margin:12px 0 20px}.charts-pdf img{display:block;width:100%;max-height:260px;object-fit:contain}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:8px;border-bottom:1px solid #dce3dc}th{color:#27735a;font-size:10px}footer{margin-top:20px;color:#66736b;font-size:10px}.no-print{margin:0 0 18px;padding:8px 14px}@media print{body{margin:12mm}.no-print{display:none}tr{break-inside:avoid}}</style></head><body><button class="no-print" onclick="window.print()">Imprimir ou salvar como PDF</button><h1>Histórico de medições</h1><div class="sub">${esc(reportFilterLabel())}</div><div class="charts-pdf">${bpImage ? `<div style="flex:1"><img alt="Gráfico de pressão arterial" src="${bpImage}"></div>` : ''}${glucoseImage ? `<div style="flex:1"><img alt="Gráfico de glicemia" src="${glucoseImage}"></div>` : ''}</div><table><thead><tr><th>DATA</th><th>PESSOA</th><th>TIPO</th><th>VALOR</th><th>OBSERVAÇÃO</th></tr></thead><tbody>${tableRows || '<tr><td colspan="5">Nenhuma medição registrada.</td></tr>'}</tbody></table><footer>Os gráficos ajudam a acompanhar os registros e não substituem orientação profissional.</footer><script>window.onload=()=>setTimeout(()=>window.print(),300)</script></body></html>`);
   popup.document.close();
 }
 
@@ -267,7 +281,7 @@ function settingsView() {
   <section class="card"><div class="card-head"><div><h3>Contas e permissões</h3><p>Contas autenticadas pelo serviço online desta família.</p></div></div>${sortByName(db.users).map(u => `<div class="list-row"><span class="person-dot green">${esc(u.name[0]?.toUpperCase())}</span><div class="row-main"><b>${esc(u.name)}</b><small>${esc(u.email)}</small></div><button class="text-button" ${!isAdmin() ? 'disabled' : ''} onclick="userModal('${u.id}')">Editar</button><select ${!isAdmin() || u.id === current.id ? 'disabled' : ''} onchange="changeRole('${u.id}',this.value)" style="width:auto;margin:0"><option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Administrador</option><option value="user" ${u.role === 'user' ? 'selected' : ''}>Usuário</option></select></div>`).join('') || '<div class="empty">Nenhuma conta familiar encontrada.</div>'}<p class="tiny">Para adicionar alguém, compartilhe o código de acesso familiar acima. A pessoa deve criar a própria conta com seu e-mail.</p></section>
   <section class="card"><div class="card-head"><div><h3>Backup da família</h3><p>Exporte ou restaure os dados compartilhados em arquivo JSON.</p></div></div><p class="tiny">O backup contém pessoas, turnos, remédios e medições. Ele não inclui senhas ou tokens de autenticação.</p><div class="setting-actions"><button class="primary" onclick="exportBackup()">⇩ Exportar base completa</button><button class="secondary" onclick="document.querySelector('#import-file').click()">⇧ Importar backup</button><input id="import-file" type="file" accept="application/json,.json" hidden></div></section><section class="card"><div class="card-head"><h3>Sobre seus dados</h3></div><p class="tiny">Os dados da família são sincronizados em um banco de dados online e protegidos por permissões de acesso específicas da família. As senhas são gerenciadas pelo serviço de autenticação da conta. Mantenha o código de acesso familiar privado.</p></section><section class="card settings-about"><div class="card-head"><div><p class="eyebrow">SOBRE O APLICATIVO</p><h3>Saúde da Família</h3><p>Organização familiar de cuidadores, remédios e medições de saúde.</p></div><img src="icon-saude.svg" alt="Ícone Saúde da Família" width="64" height="64" style="border-radius:18px"></div><div class="setting-option"><div><b>Nome do aplicativo</b><small>Saúde da Família</small></div></div><div class="setting-option"><div><b>Versão</b><small>${APP_VERSION}</small></div></div></section></div>`;
 }
-function bindContent() { const select = $('#chart-person'), monthInput = $('#chart-month'); if (select) { select.value = measurementPerson; select.onchange = () => { measurementPerson = select.value; render(); }; } if (monthInput) { monthInput.value = measurementMonth; monthInput.onchange = () => { measurementMonth = monthInput.value || todayISO().slice(0, 7); render(); }; } if (select || monthInput) drawChart(); const input = $('#import-file'); if (input) input.onchange = importBackup; if (!window.medicationHintsBound) { document.addEventListener('click', event => { const button = event.target.closest('.medication-name-link'); if (button) { event.preventDefault(); event.stopPropagation(); toggleMedicationHint(button); return; } if (event.target.closest('.medication-hint-mobile')) return; if (!event.target.closest('.medication-name-wrap')) closeMedicationHints(); }, true); document.addEventListener('keydown', event => { if (event.key === 'Escape') closeMedicationHints(); }); window.medicationHintsBound = true; } }
+function bindContent() { const select = $('#chart-person'), monthInput = $('#chart-month'); if (select) { select.value = measurementPerson; select.onchange = () => { measurementPerson = select.value; render(); }; } if (monthInput) { monthInput.value = measurementMonth; monthInput.onchange = () => { measurementMonth = monthInput.value || todayISO().slice(0, 7); render(); }; } if (select || monthInput) drawChart(); const input = $('#import-file'); if (input) input.onchange = importBackup; if (!window.chartResizeBound) { window.addEventListener('resize', () => { if (page === 'medicoes') drawChart(); }); window.chartResizeBound = true; } }
 
 function modal(title, kicker, html, callback) {
   $('#modal').classList.remove('compact-modal');
@@ -377,14 +391,14 @@ function exportMedicationsImage() {
     y += height + 12;
   });
   canvas.toBlob(blob => { if (blob) download(blob, `remedios-${todayISO()}.png`); });
-}function drawChart() {
-  const canvas = $('#measure-chart'); if (!canvas) return;
+}function drawSingleChart(canvasId, tooltipId, type, unit, color, key, emptyMsg) {
+  const canvas = $(`#${canvasId}`); if (!canvas) return;
   const rect = canvas.getBoundingClientRect(); if (!rect.width || !rect.height) return;
   const ratio = devicePixelRatio || 1; canvas.width = rect.width * ratio; canvas.height = rect.height * ratio;
   const ctx = canvas.getContext('2d'); ctx.scale(ratio, ratio);
-  const w = rect.width, h = rect.height, pad = { l: 48, r: 50, t: 26, b: 32 }, plotW = w - pad.l - pad.r, plotH = h - pad.t - pad.b;
-  const selected = measurementPerson, month = measurementMonth, data = db.measurements.filter(m => m.date?.startsWith(month) && (!selected || m.personId === selected));
-  const tooltip = $('#chart-tooltip'); if (tooltip) tooltip.hidden = true;
+  const w = rect.width, h = rect.height, pad = { l: 48, r: 24, t: 26, b: 32 }, plotW = w - pad.l - pad.r, plotH = h - pad.t - pad.b;
+  const selected = measurementPerson, month = measurementMonth, data = db.measurements.filter(m => m.type === type && m.date?.startsWith(month) && (!selected || m.personId === selected));
+  const tooltip = $(`#${tooltipId}`); if (tooltip) tooltip.hidden = true;
   ctx.clearRect(0, 0, w, h); ctx.font = '11px sans-serif'; ctx.strokeStyle = getComputedStyle(document.body).getPropertyValue('--line'); ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--muted');
   const niceMax = (values, fallback) => {
     if (!values.length) return fallback;
@@ -393,32 +407,30 @@ function exportMedicationsImage() {
     const step = [1, 2, 2.5, 5, 10].map(n => n * power).find(n => n >= raw) || 10 * power;
     return Math.max(step * 4, step);
   };
-  const bpMax = niceMax(data.filter(m => m.type === 'bp').map(m => m.sys), 200);
-  const glucoseMax = niceMax(data.filter(m => m.type === 'glucose').map(m => m.value), 300);
-  ctx.textAlign = 'left'; ctx.fillText('mmHg', 3, 13); ctx.textAlign = 'right'; ctx.fillText('mg/dL', w - 2, 13); ctx.textAlign = 'left';
+  const maxValue = niceMax(data.map(m => m[key]), type === 'bp' ? 200 : 300);
+  ctx.textAlign = 'left'; ctx.fillText(unit, 3, 13);
   for (let i = 0; i <= 4; i++) {
-    const y = pad.t + plotH * i / 4, leftValue = Math.round(bpMax * (4 - i) / 4), rightValue = Math.round(glucoseMax * (4 - i) / 4);
+    const y = pad.t + plotH * i / 4, val = Math.round(maxValue * (4 - i) / 4);
     ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(w - pad.r, y); ctx.stroke();
-    ctx.fillText(String(leftValue), 3, y + 4); ctx.textAlign = 'right'; ctx.fillText(String(rightValue), w - 2, y + 4); ctx.textAlign = 'left';
+    ctx.fillText(String(val), 3, y + 4);
   }
   const [chartYear, chartMonth] = month.split('-').map(Number), days = new Date(chartYear, chartMonth, 0).getDate(), dayStep = Math.ceil(days / 8);
   for (let i = 1; i <= days; i += dayStep) ctx.fillText(String(i), pad.l + plotW * (i - 1) / Math.max(days - 1, 1) - 4, h - 8);
   const chartPoints = [];
-  const plot = (arr, key, color, max, type) => {
-    const sorted = arr.slice().sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || '')));
-    if (!sorted.length) return;
+  const sorted = data.slice().sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || '')));
+  if (sorted.length) {
     const pts = sorted.map(m => ({
       x: pad.l + plotW * (Number(m.date.slice(-2)) - 1) / Math.max(days - 1, 1),
-      y: pad.t + plotH * (1 - Number(m[key]) / max),
+      y: pad.t + plotH * (1 - Number(m[key]) / maxValue),
       label: type === 'bp' ? `Pressão arterial: ${m.sys}/${m.dia} mmHg` : `Glicemia: ${m.value} mg/dL`,
       person: personName(m.personId), date: `${dateFmt(m.date)}${m.time ? ' · ' + m.time : ''}`, color
     }));
-    ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 2; ctx.beginPath();
-    pts.forEach((point, i) => { if (!i) ctx.moveTo(point.x, point.y); else ctx.lineTo(point.x, point.y); }); ctx.stroke();
-    pts.forEach(point => { ctx.beginPath(); ctx.arc(point.x, point.y, 5, 0, Math.PI * 2); ctx.fill(); chartPoints.push(point); });
-  };
-  plot(data.filter(m => m.type === 'bp'), 'sys', '#27735a', bpMax, 'bp');
-  plot(data.filter(m => m.type === 'glucose'), 'value', '#6496ae', glucoseMax, 'glucose');
+    ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 2.5; ctx.beginPath();
+    pts.forEach((p, i) => { if (!i) ctx.moveTo(p.x, p.y); else ctx.lineTo(p.x, p.y); }); ctx.stroke();
+    pts.forEach(p => { ctx.beginPath(); ctx.arc(p.x, p.y, 5, 0, Math.PI * 2); ctx.fill(); chartPoints.push(p); });
+  } else {
+    ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--muted'); ctx.font = '14px sans-serif'; ctx.textAlign = 'center'; ctx.fillText(emptyMsg, w / 2, h / 2); ctx.textAlign = 'left';
+  }
   canvas.style.cursor = chartPoints.length ? 'pointer' : 'default';
   canvas.onclick = event => {
     if (!tooltip || !chartPoints.length) return;
@@ -431,7 +443,12 @@ function exportMedicationsImage() {
     const top = Math.max(8, Math.min(y - tooltip.offsetHeight - 10, rect.height - tooltip.offsetHeight - 8));
     tooltip.style.left = `${left}px`; tooltip.style.top = `${top}px`;
   };
-  if (!data.length) { ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--muted'); ctx.font = '14px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('Sem medições neste mês', w / 2, h / 2); ctx.textAlign = 'left'; }
+}
+function drawChart() {
+  const greenColor = getComputedStyle(document.body).getPropertyValue('--green').trim() || '#065f46';
+  const blueColor = getComputedStyle(document.body).getPropertyValue('--blue').trim() || '#0369a1';
+  drawSingleChart('bp-chart', 'bp-chart-tooltip', 'bp', 'mmHg', greenColor, 'sys', 'Sem medições de pressão neste mês');
+  drawSingleChart('glucose-chart', 'glucose-chart-tooltip', 'glucose', 'mg/dL', blueColor, 'value', 'Sem medições de glicemia neste mês');
 }
 
 Object.assign(window, { go, setMedFilter, shiftModal, medModal, measureModal, moveMonth, toggleDose, deleteShift, deleteMedication, deleteMeasurement, deletePerson, changeRole, personModal, userModal, addUser, toggleTheme, toggleFontSize, saveFamily, exportBackup, exportSchedule, exportMedicationsImage, exportMeasurementsImage, exportMeasurementsPdf });
