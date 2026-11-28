@@ -53,8 +53,8 @@
   --radius-lg: 22px;
 
   /* Base typography scale */
-  --font-base: 16px;
-  --line-height-base: 1.6;
+  --font-base: 14px;
+  --line-height-base: 1.55;
 }
 
 /* ==========================================================================
@@ -96,14 +96,16 @@ body.dark {
 /* ==========================================================================
    Senior Accessibility Font-Size Modes
    ========================================================================== */
+html.font-large,
 body.font-large {
-  --font-base: 19px;
-  --line-height-base: 1.65;
+  --font-base: 17px;
+  --line-height-base: 1.6;
 }
 
+html.font-xlarge,
 body.font-xlarge {
-  --font-base: 22px;
-  --line-height-base: 1.7;
+  --font-base: 21px;
+  --line-height-base: 1.65;
 }
 
 /* ==========================================================================
@@ -1718,16 +1720,18 @@ footer {
 @media (max-width: 768px) {
   /* Elevate base font size on mobile screens */
   :root {
-    --font-base: 18px;
-    --line-height-base: 1.6;
+    --font-base: 15px;
+    --line-height-base: 1.55;
   }
 
+  html.font-large,
   body.font-large {
-    --font-base: 21px;
+    --font-base: 18px;
   }
 
+  html.font-xlarge,
   body.font-xlarge {
-    --font-base: 24px;
+    --font-base: 22px;
   }
 
   /* Hide desktop sidebar, release main container */

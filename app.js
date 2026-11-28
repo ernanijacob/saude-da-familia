@@ -16,8 +16,10 @@ let currentFontSize = localStorage.getItem('saude-familia-font-size') || 'normal
 function applyFontSize(size) {
   currentFontSize = size;
   localStorage.setItem('saude-familia-font-size', size);
-  document.body.classList.toggle('font-large', size === 'large');
-  document.body.classList.toggle('font-xlarge', size === 'xlarge');
+  [document.documentElement, document.body].forEach(el => {
+    el.classList.toggle('font-large', size === 'large');
+    el.classList.toggle('font-xlarge', size === 'xlarge');
+  });
   const label = size === 'normal' ? 'A+' : size === 'large' ? 'A++' : 'A';
   $$('.text-size-toggle').forEach(btn => {
     btn.innerHTML = `<span class="text-size-label"><b>${label}</b></span>`;
