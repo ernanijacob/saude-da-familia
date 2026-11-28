@@ -14,7 +14,20 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div id="auth" class="auth-wrap">
+  <div id="splash" class="splash-wrap" aria-live="polite">
+    <div class="splash-card">
+      <img class="brand-icon" src="icon-saude.svg" alt="Ícone Saúde da Família">
+      <h1>Saúde da Família</h1>
+      <p class="muted">Carregando seus dados...</p>
+    </div>
+  </div>
+
+  <div id="update-banner" class="update-banner hidden" role="status" aria-live="polite">
+    <span>Nova versão do aplicativo disponível.</span>
+    <button class="primary" type="button" onclick="checkForUpdates()">Atualizar agora</button>
+  </div>
+
+  <div id="auth" class="auth-wrap hidden">
     <div class="auth-card">
       <div class="auth-header-actions">
         <button class="icon-button text-size-toggle" id="auth-text-size-toggle" title="Aumentar tamanho do texto" aria-label="Aumentar tamanho do texto">A+</button>

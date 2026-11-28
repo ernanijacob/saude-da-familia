@@ -1,4 +1,4 @@
-const APP_VERSION = '1.1';
+const APP_VERSION = '1.2';
 const KEY = 'saude-familia-cloud-cache-v1';
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => [...document.querySelectorAll(s)];
@@ -121,6 +121,7 @@ async function establishSession(session) {
 }
 function boot() {
   applyFontSize(currentFontSize);
+  $('#splash')?.classList.add('hidden');
   if (!current) { $('#auth').classList.remove('hidden'); $('#app').classList.add('hidden'); if (!supabaseClient) $('#auth-help').textContent = 'Antes de usar, configure SUPABASE_URL e SUPABASE_ANON_KEY no arquivo supabase-config.js.'; return; }
   $('#auth').classList.add('hidden'); $('#app').classList.remove('hidden');
   document.body.classList.toggle('dark', db.theme === 'dark');
@@ -279,7 +280,7 @@ function settingsView() {
   <section class="card"><div class="card-head"><h3>Espaço familiar</h3></div><label>Nome da família<input id="family-input" value="${esc(db.family)}" ${!isAdmin() ? 'disabled' : ''}></label><button class="primary" onclick="saveFamily()" ${!isAdmin() ? 'disabled' : ''}>Salvar nome</button>${isAdmin() ? `<div class="setting-option"><div><b>Código de acesso</b><small>Compartilhe com familiares. Eles devem criar conta e informar este código.</small><code>${esc(familyInviteCode || 'Código indisponível')}</code></div><button class="secondary" onclick="addUser()">Copiar código</button></div>` : ''}</section>
   <section class="card"><div class="card-head"><div><h3>Pessoas da família</h3><p>As pessoas associadas a turnos, remédios e medições.</p></div><button class="secondary" onclick="personModal()" ${!isAdmin() ? 'disabled' : ''}>＋ Adicionar</button></div>${sortByName(db.people).map(p => `<div class="list-row"><span class="person-dot" style="${personColorStyle(p.id)}">${esc(p.name[0]?.toUpperCase())}</span><div class="row-main"><b>${esc(p.name)}</b><small>Membro da família</small></div><button class="text-button" ${!isAdmin() ? 'disabled' : ''} onclick="personModal('${p.id}')">Editar</button> · <button class="text-button" ${!isAdmin() ? 'disabled' : ''} onclick="deletePerson('${p.id}')">Excluir</button></div>`).join('') || '<div class="empty">Adicione alguém da família para começar.</div>'}</section>
   <section class="card"><div class="card-head"><div><h3>Contas e permissões</h3><p>Contas autenticadas pelo serviço online desta família.</p></div></div>${sortByName(db.users).map(u => `<div class="list-row"><span class="person-dot green">${esc(u.name[0]?.toUpperCase())}</span><div class="row-main"><b>${esc(u.name)}</b><small>${esc(u.email)}</small></div><button class="text-button" ${!isAdmin() ? 'disabled' : ''} onclick="userModal('${u.id}')">Editar</button><select ${!isAdmin() || u.id === current.id ? 'disabled' : ''} onchange="changeRole('${u.id}',this.value)" style="width:auto;margin:0"><option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Administrador</option><option value="user" ${u.role === 'user' ? 'selected' : ''}>Usuário</option></select></div>`).join('') || '<div class="empty">Nenhuma conta familiar encontrada.</div>'}<p class="tiny">Para adicionar alguém, compartilhe o código de acesso familiar acima. A pessoa deve criar a própria conta com seu e-mail.</p></section>
-  <section class="card"><div class="card-head"><div><h3>Backup da família</h3><p>Exporte ou restaure os dados compartilhados em arquivo JSON.</p></div></div><p class="tiny">O backup contém pessoas, turnos, remédios e medições. Ele não inclui senhas ou tokens de autenticação.</p><div class="setting-actions"><button class="primary" onclick="exportBackup()">⇩ Exportar base completa</button><button class="secondary" onclick="document.querySelector('#import-file').click()">⇧ Importar backup</button><input id="import-file" type="file" accept="application/json,.json" hidden></div></section><section class="card"><div class="card-head"><h3>Sobre seus dados</h3></div><p class="tiny">Os dados da família são sincronizados em um banco de dados online e protegidos por permissões de acesso específicas da família. As senhas são gerenciadas pelo serviço de autenticação da conta. Mantenha o código de acesso familiar privado.</p></section><section class="card settings-about"><div class="card-head"><div><p class="eyebrow">SOBRE O APLICATIVO</p><h3>Saúde da Família</h3><p>Organização familiar de cuidadores, remédios e medições de saúde.</p></div><img src="icon-saude.svg" alt="Ícone Saúde da Família" width="64" height="64" style="border-radius:18px"></div><div class="setting-option"><div><b>Nome do aplicativo</b><small>Saúde da Família</small></div></div><div class="setting-option"><div><b>Versão</b><small>${APP_VERSION}</small></div></div></section></div>`;
+  <section class="card"><div class="card-head"><div><h3>Backup da família</h3><p>Exporte ou restaure os dados compartilhados em arquivo JSON.</p></div></div><p class="tiny">O backup contém pessoas, turnos, remédios e medições. Ele não inclui senhas ou tokens de autenticação.</p><div class="setting-actions"><button class="primary" onclick="exportBackup()">⇩ Exportar base completa</button><button class="secondary" onclick="document.querySelector('#import-file').click()">⇧ Importar backup</button><input id="import-file" type="file" accept="application/json,.json" hidden></div></section><section class="card"><div class="card-head"><h3>Sobre seus dados</h3></div><p class="tiny">Os dados da família são sincronizados em um banco de dados online e protegidos por permissões de acesso específicas da família. As senhas são gerenciadas pelo serviço de autenticação da conta. Mantenha o código de acesso familiar privado.</p></section><section class="card settings-about"><div class="card-head"><div><p class="eyebrow">SOBRE O APLICATIVO</p><h3>Saúde da Família</h3><p>Organização familiar de cuidadores, remédios e medições de saúde.</p></div><img src="icon-saude.svg" alt="Ícone Saúde da Família" width="64" height="64" style="border-radius:18px"></div><div class="setting-option"><div><b>Nome do aplicativo</b><small>Saúde da Família</small></div></div><div class="setting-option"><div><b>Versão</b><small>${APP_VERSION}</small></div><button class="secondary" onclick="checkForUpdates()">Atualizar</button></div></section></div>`;
 }
 function bindContent() { const select = $('#chart-person'), monthInput = $('#chart-month'); if (select) { select.value = measurementPerson; select.onchange = () => { measurementPerson = select.value; render(); }; } if (monthInput) { monthInput.value = measurementMonth; monthInput.onchange = () => { measurementMonth = monthInput.value || todayISO().slice(0, 7); render(); }; } if (select || monthInput) drawChart(); const input = $('#import-file'); if (input) input.onchange = importBackup; if (!window.chartResizeBound) { window.addEventListener('resize', () => { if (page === 'medicoes') drawChart(); }); window.chartResizeBound = true; } }
 
@@ -451,15 +452,56 @@ function drawChart() {
   drawSingleChart('glucose-chart', 'glucose-chart-tooltip', 'glucose', 'mg/dL', blueColor, 'value', 'Sem medições de glicemia neste mês');
 }
 
-Object.assign(window, { go, setMedFilter, shiftModal, medModal, measureModal, moveMonth, toggleDose, deleteShift, deleteMedication, deleteMeasurement, deletePerson, changeRole, personModal, userModal, addUser, toggleTheme, toggleFontSize, saveFamily, exportBackup, exportSchedule, exportMedicationsImage, exportMeasurementsImage, exportMeasurementsPdf });
-if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+let swRegistration = null;
+function showUpdateBanner() {
+  $('#update-banner')?.classList.remove('hidden');
+}
+async function checkForUpdates() {
+  try {
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+    }
+    if (swRegistration) await swRegistration.update();
+    if (swRegistration?.waiting) swRegistration.waiting.postMessage('SKIP_WAITING');
+  } catch {}
+  window.location.reload();
+}
+
+Object.assign(window, { go, setMedFilter, shiftModal, medModal, measureModal, moveMonth, toggleDose, deleteShift, deleteMedication, deleteMeasurement, deletePerson, changeRole, personModal, userModal, addUser, toggleTheme, toggleFontSize, saveFamily, exportBackup, exportSchedule, exportMedicationsImage, exportMeasurementsImage, exportMeasurementsPdf, checkForUpdates });
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    const hadController = Boolean(navigator.serviceWorker.controller);
+    navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then(reg => {
+      swRegistration = reg;
+      reg.update().catch(() => {});
+      if (reg.waiting && hadController) showUpdateBanner();
+      reg.addEventListener('updatefound', () => {
+        const installing = reg.installing;
+        if (!installing) return;
+        installing.addEventListener('statechange', () => {
+          if (installing.state === 'installed' && navigator.serviceWorker.controller) showUpdateBanner();
+        });
+      });
+    }).catch(() => {});
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (hadController) showUpdateBanner();
+    });
+  });
+}
 async function initializeAuth() {
   applyFontSize(currentFontSize);
-  authMode = 'login'; setAuth(); boot();
-  if (!supabaseClient) return;
+  document.body.classList.toggle('dark', db.theme === 'dark');
+  authMode = 'login'; setAuth();
+  if (!supabaseClient) { boot(); return; }
   const { data, error } = await supabaseClient.auth.getSession();
-  if (error) { toast(`Erro ao iniciar autenticação: ${error.message}`); return; }
-  if (data.session) await establishSession(data.session);
+  if (error) { boot(); toast(`Erro ao iniciar autenticação: ${error.message}`); return; }
+  if (data.session) {
+    await establishSession(data.session);
+    if (!familyId) { current = null; boot(); }
+  } else {
+    boot();
+  }
   if (new URLSearchParams(location.hash.slice(1)).get('type') === 'recovery') {
     const password = prompt('Digite a nova senha (mínimo 6 caracteres):');
     if (password && password.length >= 6) {
